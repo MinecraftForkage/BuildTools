@@ -1,5 +1,7 @@
 package patcher;
 
+import installer.ProgressDialog;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -100,6 +102,10 @@ public class PatchFile {
 	}
 	
 	public byte[] applyPatches(byte[] bytes, String path) {
+		return applyPatches(bytes, path, null);
+	}
+	
+	public byte[] applyPatches(byte[] bytes, String path, ProgressDialog dlg) {
 		if(!hunks.containsKey(path))
 			return bytes;
 		
@@ -107,8 +113,10 @@ public class PatchFile {
 		
 		List<List<PatchHunk>> alternatives = hunks.get(path);
 		if(alternatives.size() == 1) {
+			if(dlg != null) dlg.initProgressBar(0, alternatives.get(0).size());
 			for(PatchHunk hunk : alternatives.get(0))
 				try {
+					if(dlg != null) dlg.incrementProgress(1);
 					hunk.apply(lines);
 				} catch(RuntimeException e) {
 					throw new RuntimeException("Failed patching hunk -"+hunk.oldStart+","+hunk.oldCount, e);

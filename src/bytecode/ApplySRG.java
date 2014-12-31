@@ -1,5 +1,6 @@
 package bytecode;
 import immibis.bon.ClassCollection;
+import immibis.bon.IProgressListener;
 import immibis.bon.Mapping;
 import immibis.bon.NameSet;
 import immibis.bon.ReferenceDataCollection;
@@ -7,6 +8,7 @@ import immibis.bon.Remapper;
 import immibis.bon.SimpleNameSet;
 import immibis.bon.io.JarLoader;
 import immibis.bon.io.JarWriter;
+import installer.ProgressDialog;
 
 import java.io.File;
 import java.io.FileReader;
@@ -24,7 +26,7 @@ public class ApplySRG {
 		
 		try {
 			
-			apply(new FileReader(args[0]), new File(args[1]), new File(args[2]));
+			apply(new FileReader(args[0]), new File(args[1]), new File(args[2]), null);
 			
 		} catch(Throwable t) {
 			t.printStackTrace();
@@ -32,7 +34,7 @@ public class ApplySRG {
 		}
 	}
 	
-	public static void apply(Reader srg, File infile, File outfile) throws Exception {
+	public static void apply(Reader srg, File infile, File outfile, final ProgressDialog dlg) throws Exception {
 		NameSet inputNS = new SimpleNameSet("IN");
 		NameSet outputNS = new SimpleNameSet("OUT");
 		
@@ -59,7 +61,7 @@ public class ApplySRG {
 		}
 		
 		ClassCollection cc = JarLoader.loadClassesFromJar(inputNS, infile, null);
-		cc = Remapper.remap(cc, m, Collections.<ReferenceDataCollection>emptyList(), null);
+		cc = Remapper.remap(cc, m, Collections.<ReferenceDataCollection>emptyList(), dlg);
 		JarWriter.write(outfile, cc, null);
 	}
 	

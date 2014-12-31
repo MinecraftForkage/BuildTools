@@ -1,5 +1,7 @@
 package bytecode;
 
+import installer.ProgressDialog;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -42,7 +44,7 @@ public class JarMerger {
 		}
 		
 		try {
-			merge(new File(args[0]), new File(args[1]), new File(args[2]), new FileReader(new File(args[3])));
+			merge(new File(args[0]), new File(args[1]), new File(args[2]), new FileReader(new File(args[3])), null);
 		} catch(Throwable t) {
 			t.printStackTrace();
 			System.exit(1);
@@ -50,14 +52,14 @@ public class JarMerger {
 	}
 	
 	// Closes `config`.
-	public static void merge(File client, File server, File outFile, Reader config) throws IOException {
+	public static void merge(File client, File server, File outFile, Reader config, ProgressDialog dlg) throws IOException {
 		
 		Config cfg = readConfig(config);
 		
 		try (ZipFile clientJF = new JarFile(client)) {
 			try (ZipFile serverJF = new JarFile(server)) {
 				try (ZipOutputStream outJF = new ZipOutputStream(new FileOutputStream(outFile))) {
-					merge(clientJF, serverJF, outJF, cfg);
+					merge(clientJF, serverJF, outJF, cfg, dlg);
 				}
 			}
 		}
@@ -90,7 +92,7 @@ public class JarMerger {
 	
 	
 	// Does not close `clientJF`, `serverJF` or `outJF`.
-	public static void merge(ZipFile clientJF, ZipFile serverJF, ZipOutputStream outJF, Config cfg) throws IOException {
+	public static void merge(ZipFile clientJF, ZipFile serverJF, ZipOutputStream outJF, Config cfg, ProgressDialog dlg) throws IOException {
 		Set<String> seenResources = new HashSet<>();
 		Map<String, ZipEntry> clientClasses = new HashMap<>();
 		Map<String, ZipEntry> serverClasses = new HashMap<>();
@@ -105,7 +107,7 @@ public class JarMerger {
 		writeOneSidedClasses(clientJF, outJF, clientClasses, serverClasses.keySet(), "CLIENT");
 		writeOneSidedClasses(serverJF, outJF, serverClasses, clientClasses.keySet(), "SERVER");
 		
-		writeMergedClasses(clientJF, serverJF, outJF, commonClasses);
+		writeMergedClasses(clientJF, serverJF, outJF, commonClasses, dlg);
 	}
 	
 	private static void writeOneSidedClasses(ZipFile inJF, ZipOutputStream outJF, Map<String, ZipEntry> classes, Set<String> otherSideClasses, final String sideAnnotation) throws IOException {
@@ -137,7 +139,8 @@ public class JarMerger {
 		}
 	}
 	
-	private static void writeMergedClasses(ZipFile clientJF, ZipFile serverJF, ZipOutputStream outJF, Set<String> commonClasses) throws IOException {
+	private static void writeMergedClasses(ZipFile clientJF, ZipFile serverJF, ZipOutputStream outJF, Set<String> commonClasses, ProgressDialog dlg) throws IOException {
+		if(dlg != null) dlg.initProgressBar(0, commonClasses.size());
 		for(String classname : commonClasses) {
 			String filename = classname.replace('.', '/') + ".class";
 			
@@ -160,6 +163,8 @@ public class JarMerger {
 			outJF.putNextEntry(new ZipEntry(filename));
 			outJF.write(cw.toByteArray());
 			outJF.closeEntry();
+			
+			if(dlg != null) dlg.incrementProgress(1);
 		}
 	}
 

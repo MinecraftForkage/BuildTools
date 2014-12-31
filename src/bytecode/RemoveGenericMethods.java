@@ -19,7 +19,7 @@ public class RemoveGenericMethods extends BaseStreamingJarProcessor {
 	}
 	
 	@Override
-	protected ClassVisitor createClassVisitor(final ClassVisitor parent) throws Exception {
+	public ClassVisitor createClassVisitor(final ClassVisitor parent) throws Exception {
 		return new ClassVisitor(Opcodes.ASM5, parent) {
 			
 			String className;

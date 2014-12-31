@@ -59,9 +59,15 @@ public class PatchHunk {
 			System.err.println("Applying hunk -"+oldStart+","+oldCount+" at line "+at+" instead of "+newStart+" in "+path);
 		
 		at--;
-		for(int k = 0; k < oldCount; k++)
-			lines.remove(at);
-		for(int k = 0; k < newCount; k++)
-			lines.add(at+k, newLines.get(k));
+		
+		//for(int k = 0; k < oldCount; k++)
+		//	lines.remove(at);
+		//for(int k = 0; k < newCount; k++)
+		//	lines.add(at+k, newLines.get(k));
+		
+		if(oldCount != 0)
+			lines.subList(at, at+oldCount).clear();
+		if(newLines.size() != 0)
+			lines.addAll(at, newLines);
 	}
 }
