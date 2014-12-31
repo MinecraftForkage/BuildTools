@@ -19,8 +19,8 @@
 
 package lzma.streams;
 
+import lzma.org.cservenak.streams.Coder;
 import lzma.sdk.lzma.Decoder;
-import org.cservenak.streams.Coder;
 
 import java.io.IOException;
 import java.io.InputStream;

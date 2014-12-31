@@ -29,7 +29,6 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 
-import patcher.PatchFile;
 import bytecode.AddOBFID;
 import bytecode.ApplyAT;
 import bytecode.ApplyExceptions;
@@ -43,6 +42,7 @@ import bytecode.RemoveGenericMethods;
 import bytecode.SortZipEntries;
 import bytecode.Text2Bytecode;
 import bytecode.TrimBytecode;
+import bytecode.patchfile.PatchFile;
 
 public class Installer {
 	public static File install(File clientJar, File serverJar, File tempDir, Map<String, byte[]> installData, ProgressDialog dlg) throws Exception {
@@ -227,19 +227,5 @@ public class Installer {
 			}
 			clientJarIn.closeEntry();
 		}
-	}
-}
-
-class InstallerTestMain {
-	public static void main(String[] args) throws Exception {
-		Map<String, byte[]> installData;
-		try (InputStream in = new LzmaInputStream(new BufferedInputStream(new FileInputStream(new File(args[0]))), new Decoder())) {
-			installData = Utils.readZip(in);
-		}
-		File clientJar = new File(args[1]);
-		File serverJar = new File(args[2]);
-		File tempDir = new File(args[3]);
-		
-		Installer.install(clientJar, serverJar, tempDir, installData, null);
 	}
 }

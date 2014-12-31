@@ -1,7 +1,8 @@
 /*
- *  Copyright (c) 2010-2011 Julien Ponge. All rights reserved.
+ *  Copyright (c) 2011 Tamas Cservenak. All rights reserved.
  *
- *  Portions Copyright (c) 2011 Tamas Cservenak.
+ *  <tamas@cservenak.com>
+ *  http://www.cservenak.com/
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,26 +17,14 @@
  *  limitations under the License.
  */
 
-package lzma.streams;
-
-import lzma.org.cservenak.streams.CoderInputStream;
-import lzma.sdk.lzma.Decoder;
+package lzma.org.cservenak.streams;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
-/**
- * An input stream that uses LZMA compression.
- *
- * @author Julien Ponge
- * @author Tamas Cservenak
- */
-public class LzmaInputStream
-        extends CoderInputStream
+public interface Coder
 {
-    public LzmaInputStream(final InputStream in, final Decoder lzmaDecoder)
-            throws IOException
-    {
-        super(in, new LzmaDecoderWrapper(lzmaDecoder));
-    }
+    void code(InputStream in, OutputStream out)
+            throws IOException;
 }

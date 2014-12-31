@@ -3,6 +3,7 @@ package installer;
 import java.awt.Toolkit;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -40,10 +41,10 @@ public class InstallerMain {
 			dlg.startIndeterminate("Unpacking installer");
 			
 			{
-				File devInstallDataFile = new File("../../build/install-data.zip.lzma");
 				InputStream embeddedInstallDataStream = InstallerMain.class.getResourceAsStream("/build/install-data.zip.lzma");
 				if(embeddedInstallDataStream == null)
 				{
+					File devInstallDataFile = new File("../../build/install-data.zip.lzma");
 					if(devInstallDataFile.exists())
 						embeddedInstallDataStream = new FileInputStream(devInstallDataFile);
 					else {
