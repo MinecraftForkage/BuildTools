@@ -41,7 +41,7 @@ public class InstallerMain {
 			dlg.startIndeterminate("Unpacking installer");
 			
 			{
-				InputStream embeddedInstallDataStream = InstallerMain.class.getResourceAsStream("/build/install-data.zip.lzma");
+				InputStream embeddedInstallDataStream = InstallerMain.class.getResourceAsStream("/install-data.zip.lzma");
 				if(embeddedInstallDataStream == null)
 				{
 					File devInstallDataFile = new File("../../build/install-data.zip.lzma");
