@@ -51,58 +51,70 @@ public class Installer {
 		File unsorted = new File(tempDir, "unsorted.jar");
 		File sorted = new File(tempDir, "sorted.jar");
 		
-		if(dlg != null) dlg.startIndeterminate("Merging JARs");
-		JarMerger.merge(clientJar, serverJar, merged, new InputStreamReader(new ByteArrayInputStream(installData.get("mcp_merge.cfg"))), dlg);
+		byte[] bytecodeTextBytes;
 		
-		if(dlg != null) dlg.startIndeterminate("Applying deobfuscation mapping");
-		ApplySRG.apply(new InputStreamReader(new ByteArrayInputStream(installData.get("joined.srg"))), merged, srg, dlg);
-		
-		final Object exceptor_json = JsonReader.readJSON(new InputStreamReader(new ByteArrayInputStream(installData.get("exceptor.json"))));
-		final List<ApplyAT.Pattern> fml_at = ApplyAT.loadActions(new InputStreamReader(new ByteArrayInputStream(installData.get("fml_at.cfg"))));
-		final List<ApplyAT.Pattern> forge_at = ApplyAT.loadActions(new InputStreamReader(new ByteArrayInputStream(installData.get("forge_at.cfg"))));
-		final ApplyExceptions exceptions = new ApplyExceptions();
-		final ApplyParamNames params = new ApplyParamNames();
-		final AddOBFID obfid = new AddOBFID();
-		final TrimBytecode trim = new TrimBytecode();
-		final RemoveGenericMethods removeGenericBridges = new RemoveGenericMethods();
-		
-		exceptions.loadConfig(new InputStreamReader(new ByteArrayInputStream(installData.get("joined.exc"))));
-		params.loadConfig(new InputStreamReader(new ByteArrayInputStream(installData.get("joined.exc"))));
-		obfid.loadConfig(new InputStreamReader(new ByteArrayInputStream(installData.get("joined.exc"))));
-		
-		if(dlg != null) dlg.startIndeterminate("Processing bytecode");
-		new BaseStreamingJarProcessor() {
-			@Override
-			protected void loadConfig(Reader file) throws Exception {
-			}
+		if(Boolean.getBoolean("minecraftforkage.installer.readUnpatchedBytecodeFromFile")) {
+			File file = new File("../bytecode-orig.txt");
 			
-			@Override
-			protected ClassVisitor createClassVisitor(ClassVisitor cv) throws Exception {
-				cv = trim.createClassVisitor(cv);
-				cv = removeGenericBridges.createClassVisitor(cv);
-				cv = obfid.createClassVisitor(cv);
-				cv = params.createClassVisitor(cv);
-				cv = exceptions.createClassVisitor(cv);
-				cv = new ApplyAT.ApplyATClassVisitor(cv, forge_at);
-				cv = new ApplyAT.ApplyATClassVisitor(cv, fml_at);
-				cv = new ApplyExceptorJson.ApplyJsonClassVisitor(cv, (Map)exceptor_json);
-				return cv;
+			try (FileInputStream in = new FileInputStream(file)) {
+				bytecodeTextBytes = Utils.readStream(in);
 			}
-		}.go(new FileInputStream(srg), new FileOutputStream(unsorted));
-		
-		if(dlg != null) dlg.startIndeterminate("Sorting class files");
-		SortZipEntries.sort(unsorted, null, false, new FileOutputStream(sorted));
-		
-		if(dlg != null) dlg.startIndeterminate("Converting bytecode to patchable format");
-		ByteArrayOutputStream bcOrigBAOS = new ByteArrayOutputStream();
-		Bytecode2Text.go(new FileInputStream(sorted), new PrintStream(bcOrigBAOS));
-		byte[] bytecodeTextBytes = bcOrigBAOS.toByteArray();
-		bcOrigBAOS = null;
-		
-		// for debugging
-		if(Boolean.getBoolean("minecraftforkage.installer.dumpPreprocessedBytecode")) {
-			try (FileOutputStream fOut = new FileOutputStream(new File(tempDir, "bytecode-orig.txt"))) {
-				fOut.write(bytecodeTextBytes);
+		}
+		else
+		{
+			if(dlg != null) dlg.startIndeterminate("Merging JARs");
+			JarMerger.merge(clientJar, serverJar, merged, new InputStreamReader(new ByteArrayInputStream(installData.get("mcp_merge.cfg"))), dlg);
+			
+			if(dlg != null) dlg.startIndeterminate("Applying deobfuscation mapping");
+			ApplySRG.apply(new InputStreamReader(new ByteArrayInputStream(installData.get("joined.srg"))), merged, srg, dlg);
+			
+			final Object exceptor_json = JsonReader.readJSON(new InputStreamReader(new ByteArrayInputStream(installData.get("exceptor.json"))));
+			final List<ApplyAT.Pattern> fml_at = ApplyAT.loadActions(new InputStreamReader(new ByteArrayInputStream(installData.get("fml_at.cfg"))));
+			final List<ApplyAT.Pattern> forge_at = ApplyAT.loadActions(new InputStreamReader(new ByteArrayInputStream(installData.get("forge_at.cfg"))));
+			final ApplyExceptions exceptions = new ApplyExceptions();
+			final ApplyParamNames params = new ApplyParamNames();
+			final AddOBFID obfid = new AddOBFID();
+			final TrimBytecode trim = new TrimBytecode();
+			final RemoveGenericMethods removeGenericBridges = new RemoveGenericMethods();
+			
+			exceptions.loadConfig(new InputStreamReader(new ByteArrayInputStream(installData.get("joined.exc"))));
+			params.loadConfig(new InputStreamReader(new ByteArrayInputStream(installData.get("joined.exc"))));
+			obfid.loadConfig(new InputStreamReader(new ByteArrayInputStream(installData.get("joined.exc"))));
+			
+			if(dlg != null) dlg.startIndeterminate("Processing bytecode");
+			new BaseStreamingJarProcessor() {
+				@Override
+				protected void loadConfig(Reader file) throws Exception {
+				}
+				
+				@Override
+				protected ClassVisitor createClassVisitor(ClassVisitor cv) throws Exception {
+					cv = trim.createClassVisitor(cv);
+					cv = removeGenericBridges.createClassVisitor(cv);
+					cv = obfid.createClassVisitor(cv);
+					cv = params.createClassVisitor(cv);
+					cv = exceptions.createClassVisitor(cv);
+					cv = new ApplyAT.ApplyATClassVisitor(cv, forge_at);
+					cv = new ApplyAT.ApplyATClassVisitor(cv, fml_at);
+					cv = new ApplyExceptorJson.ApplyJsonClassVisitor(cv, (Map)exceptor_json);
+					return cv;
+				}
+			}.go(new FileInputStream(srg), new FileOutputStream(unsorted));
+			
+			if(dlg != null) dlg.startIndeterminate("Sorting class files");
+			SortZipEntries.sort(unsorted, null, false, new FileOutputStream(sorted));
+			
+			if(dlg != null) dlg.startIndeterminate("Converting bytecode to patchable format");
+			ByteArrayOutputStream bcOrigBAOS = new ByteArrayOutputStream();
+			Bytecode2Text.go(new FileInputStream(sorted), new PrintStream(bcOrigBAOS));
+			bytecodeTextBytes = bcOrigBAOS.toByteArray();
+			bcOrigBAOS = null;
+			
+			// for debugging
+			if(Boolean.getBoolean("minecraftforkage.installer.dumpPreprocessedBytecode")) {
+				try (FileOutputStream fOut = new FileOutputStream(new File(tempDir, "bytecode-orig.txt"))) {
+					fOut.write(bytecodeTextBytes);
+				}
 			}
 		}
 		
@@ -112,7 +124,7 @@ public class Installer {
 			bytecodePatch = PatchFile.load(br);
 		}
 		
-		if(dlg != null) dlg.startIndeterminate("Applying bytecode patch (may take a minute!)");
+		if(dlg != null) dlg.startIndeterminate("Applying bytecode patch");
 		{
 			long patchingStartTime = System.nanoTime(); 
 			bytecodeTextBytes = bytecodePatch.applyPatches(bytecodeTextBytes, "build/bytecode-orig.txt", dlg);

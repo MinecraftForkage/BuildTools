@@ -109,7 +109,11 @@ public class PatchFile {
 		if(!hunks.containsKey(path))
 			return bytes;
 		
-		List<String> lines = new ArrayList<>(Arrays.asList(new String(bytes, StandardCharsets.UTF_8).replace("\r\n","\n").split("\n")));
+		// Measured time for the installer bytecode patching:
+		// 3.29s with TreeList
+		// 39.1s with ArrayList
+		// Over 5 minutes (after which I stopped waiting) with LinkedList (since it does not support efficient random access)
+		List<String> lines = new TreeList<>(Arrays.asList(new String(bytes, StandardCharsets.UTF_8).replace("\r\n","\n").split("\n")));
 		
 		List<List<PatchHunk>> alternatives = hunks.get(path);
 		if(alternatives.size() == 1) {
