@@ -128,11 +128,16 @@ public class InstallerMain {
 			
 			///////// INSTALL VERSION IN MINECRAFT LAUNCHER /////////
 			
-			File versionDir = new File(Utils.getMinecraftDirectory(), "versions/" + launcherVersionName);
-			if(versionDir.exists())
-				throw new Exception("Already exists: "+versionDir);
+			dlg.startIndeterminate("Installing in launcher");
 			
-			versionDir.mkdirs();
+			File versionDir = new File(new File(Utils.getMinecraftDirectory(), "versions"), launcherVersionName);
+			if(versionDir.exists()) {
+				System.out.println(versionDir+" already exists, deleting...");
+				deleteRecursive(versionDir);
+			}
+			
+			if(!versionDir.isDirectory() && !versionDir.mkdirs())
+				throw new Exception("Failed to create directory: "+versionDir);
 			
 			// Install JSON file (by copying from install data)
 			try (FileOutputStream versionJsonOut = new FileOutputStream(new File(versionDir, launcherVersionName+".json"))) {
@@ -169,10 +174,22 @@ public class InstallerMain {
 			dlg.setVisible(false);
 		}
 		
-		if(tempDir != null)
+		if(tempDir != null) {
+			// Some antivirus programs (MSSE) seem to stop us deleting our temporary files?
+			// Therefore causing this process to stay in the background indefinitely.
+			// Avoid this by exiting after a fixed amount of time even if we're not done.
+			new Thread() {
+				{setName("Temporary folder deletion watchdog timer");}
+				public void run() {
+					try {Thread.sleep(10000);} catch(Exception e) {}
+					Runtime.getRuntime().halt(0);
+				};
+			}.start();
+			
 			deleteRecursive(tempDir);
+		}
 		
-		System.exit(1);
+		System.exit(0);
 	}
 
 	private static void deleteRecursive(File f) {

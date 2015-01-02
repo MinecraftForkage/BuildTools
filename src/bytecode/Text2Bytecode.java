@@ -1,5 +1,7 @@
 package bytecode;
 
+import installer.ProgressDialog;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Array;
@@ -21,16 +23,18 @@ public class Text2Bytecode {
 	public static void main(String[] args) throws Exception {
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 		try (ZipOutputStream out = new ZipOutputStream(System.out)) {
-			new Text2Bytecode(in, out).run();
+			new Text2Bytecode(in, out, null).run();
 		}
 	}
 	
 	private BufferedReader in;
 	private ZipOutputStream out;
 	private String line;
-	public Text2Bytecode(BufferedReader in, ZipOutputStream out) {
+	private ProgressDialog dlg;
+	public Text2Bytecode(BufferedReader in, ZipOutputStream out, ProgressDialog dlg) {
 		this.in = in;
 		this.out = out;
+		this.dlg = dlg;
 	}
 	
 	private String getline() throws Exception {
@@ -47,6 +51,8 @@ public class Text2Bytecode {
 		boolean firstFile = true;
 		while(getline() != null) {
 			if(line.startsWith("FILE ")) {
+				if(dlg != null) dlg.incrementProgress(1);
+				
 				if(firstFile) firstFile = false;
 				else {
 					if(objstack.size() != 1)

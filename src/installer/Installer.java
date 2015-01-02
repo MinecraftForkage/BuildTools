@@ -1,6 +1,7 @@
 package installer;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Pack200;
 import java.util.zip.ZipEntry;
@@ -50,13 +52,17 @@ import bytecode.TrimBytecode;
 import bytecode.patchfile.PatchFile;
 
 public class Installer {
-	public static File install(File clientJar, File serverJar, File tempDir, Map<String, byte[]> installData, ProgressDialog dlg) throws Exception {
+	public static File install(File clientJar, File serverJar, File tempDir, Map<String, byte[]> installData, final ProgressDialog dlg) throws Exception {
 		File merged = new File(tempDir, "merged.jar");
 		File srg = new File(tempDir, "srg.jar");
 		File unsorted = new File(tempDir, "unsorted.jar");
 		File sorted = new File(tempDir, "sorted.jar");
 		
 		File unpatchedBytecodeFile;
+		
+		int numClassFiles = 0;
+		
+		final int[] numClassFilesRef = {0};
 		
 		if(Boolean.getBoolean("minecraftforkage.installer.readUnpatchedBytecodeFromFile")) {
 			unpatchedBytecodeFile = new File("../bytecode-orig.txt");
@@ -98,9 +104,12 @@ public class Installer {
 					cv = new ApplyAT.ApplyATClassVisitor(cv, forge_at);
 					cv = new ApplyAT.ApplyATClassVisitor(cv, fml_at);
 					cv = new ApplyExceptorJson.ApplyJsonClassVisitor(cv, (Map)exceptor_json);
+					numClassFilesRef[0]++;
 					return cv;
 				}
 			}.go(new FileInputStream(srg), new FileOutputStream(unsorted));
+			
+			numClassFiles = numClassFilesRef[0];
 			
 			if(dlg != null) dlg.startIndeterminate("Sorting class files");
 			SortZipEntries.sort(unsorted, null, false, new FileOutputStream(sorted));
@@ -108,8 +117,9 @@ public class Installer {
 			unpatchedBytecodeFile = new File(tempDir, "bytecode-unpatched.txt");
 			
 			if(dlg != null) dlg.startIndeterminate("Converting bytecode to patchable format");
-			try (PrintStream fout = new PrintStream(new FileOutputStream(unpatchedBytecodeFile))) {
-				Bytecode2Text.go(new FileInputStream(sorted), fout);
+			try (PrintStream fout = new PrintStream(new BufferedOutputStream(new FileOutputStream(unpatchedBytecodeFile), 262144))) {
+				if(dlg != null) dlg.initProgressBar(0, numClassFiles);
+				Bytecode2Text.go(new FileInputStream(sorted), fout, dlg);
 			}
 		}
 		
@@ -136,8 +146,9 @@ public class Installer {
 		if(dlg != null) dlg.startIndeterminate("Converting back to JAR format");
 		ByteArrayOutputStream patchedJarBAOS = new ByteArrayOutputStream();
 		try (JarOutputStream patchedJarOut = new JarOutputStream(patchedJarBAOS)) {
-			try (BufferedReader patchedBytecodeIn = new BufferedReader(new InputStreamReader(new FileInputStream(patchedBytecodeFile), StandardCharsets.UTF_8))) {
-				new Text2Bytecode(patchedBytecodeIn, patchedJarOut).run();
+			try (BufferedReader patchedBytecodeIn = new BufferedReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(patchedBytecodeFile), 262144), StandardCharsets.UTF_8))) {
+				if(dlg != null) dlg.initProgressBar(0, numClassFiles);
+				new Text2Bytecode(patchedBytecodeIn, patchedJarOut, dlg).run();
 			}
 			Pack200.newUnpacker().unpack(new ByteArrayInputStream(installData.get("new-classes.pack")), patchedJarOut);
 			
@@ -150,15 +161,22 @@ public class Installer {
 		patchedJarBAOS = null;
 		
 		if(dlg != null) dlg.startIndeterminate("Extracting superclasses");
+		if(dlg != null) dlg.initProgressBar(0, numClassFiles);
+		
 		// find superclass of every class (not interface)
+		// Previous step added some class files, but we don't know how many, so re-count that too.
+		
+		numClassFilesRef[0] = 0;
 		final Map<String, String> superclasses = new HashMap<String, String>();
 		try (ZipInputStream patchedJarIn = new ZipInputStream(new ByteArrayInputStream(patchedJarBytes))) {
 			ZipEntry ze;
 			while((ze = patchedJarIn.getNextEntry()) != null) {
 				if(ze.getName().endsWith(".class")) {
+					numClassFilesRef[0]++;
 					new ClassReader(patchedJarIn).accept(new ClassVisitor(Opcodes.ASM5) {
 						@Override
 						public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+							if(dlg != null) dlg.incrementProgress(1);
 							if((access & Opcodes.ACC_INTERFACE) == 0) {
 								System.err.println("superclass of "+name+" is "+superName);
 								superclasses.put(name, superName);
@@ -169,10 +187,12 @@ public class Installer {
 				patchedJarIn.closeEntry();
 			}
 		}
+		numClassFiles = numClassFilesRef[0];
 		
 		File finalResultJar = new File(tempDir, "patched.jar");
 		
 		if(dlg != null) dlg.startIndeterminate("Pre-verifying JAR");
+		if(dlg != null) dlg.initProgressBar(0, numClassFiles);
 		
 		// compute frames and maxes for all methods; bytecode patching doesn't preserve them
 		try (ZipInputStream patchedJarIn = new ZipInputStream(new ByteArrayInputStream(patchedJarBytes))) {
@@ -182,6 +202,9 @@ public class Installer {
 					completeJarOut.putNextEntry(new ZipEntry(ze.getName()));
 					
 					if(ze.getName().endsWith(".class")) {
+						
+						if(dlg != null) dlg.incrementProgress(1);
+						
 						System.err.println("Generating frames for "+ze.getName());
 						ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS) {
 							@Override

@@ -1,6 +1,7 @@
 package bytecode;
 
 import immibis.bon.IProgressListener;
+import installer.ProgressDialog;
 
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -30,7 +31,7 @@ public class Bytecode2Text {
 	
 	public static void main(String[] args) {
 		try {
-			go(System.in, System.out);
+			go(System.in, System.out, null);
 			
 		} catch(Throwable t) {
 			t.printStackTrace();
@@ -38,7 +39,7 @@ public class Bytecode2Text {
 		}
 	}
 	
-	public static void go(InputStream inBase, PrintStream out) throws Exception {
+	public static void go(InputStream inBase, PrintStream out, ProgressDialog dlg) throws Exception {
 		try (ZipInputStream in = new ZipInputStream(inBase)) {
 			ZipEntry ze;
 			while((ze = in.getNextEntry()) != null) {
@@ -46,6 +47,8 @@ public class Bytecode2Text {
 					in.closeEntry();
 					continue;
 				}
+				
+				if(dlg != null) dlg.incrementProgress(1);
 				
 				out.println("FILE "+ze.getName());
 				new ClassReader(in).accept(new TranslateClassVisitor(out), 0);
