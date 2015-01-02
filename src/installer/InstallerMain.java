@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Properties;
 
@@ -86,6 +87,12 @@ public class InstallerMain {
 			tempDir = File.createTempFile("MCF-INSTALLER-", ".tmp");
 			if(!tempDir.delete() || !tempDir.mkdirs())
 				throw new Exception("Failed to create directory "+tempDir.getAbsolutePath());
+			
+			// create a README file in our temporary directory in case
+			// something stops us from deleting it when done
+			try (FileOutputStream out = new FileOutputStream(new File(tempDir, "AAA TEMP FOLDER README.TXT"))) {
+				out.write("This directory was created by the Minecraft Forkage installer. Unless the installer is still running, you can safely delete it at any time.".getBytes(StandardCharsets.UTF_8));
+			}
 			
 			System.out.println("Temp dir: "+tempDir);
 			
