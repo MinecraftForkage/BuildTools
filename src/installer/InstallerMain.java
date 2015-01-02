@@ -136,8 +136,11 @@ public class InstallerMain {
 				deleteRecursive(versionDir);
 			}
 			
-			if(!versionDir.isDirectory() && !versionDir.mkdirs())
-				throw new Exception("Failed to create directory: "+versionDir);
+			if(!versionDir.isDirectory() && !versionDir.mkdirs()) {
+				try {Thread.sleep(1000);} catch(InterruptedException e) {}
+				if(!versionDir.isDirectory() && !versionDir.mkdirs())
+					throw new Exception("Failed to create directory: "+versionDir);
+			}
 			
 			// Install JSON file (by copying from install data)
 			try (FileOutputStream versionJsonOut = new FileOutputStream(new File(versionDir, launcherVersionName+".json"))) {
