@@ -27,7 +27,7 @@ import org.objectweb.asm.TypePath;
 
 
 public class Bytecode2Text {
-	static final boolean TRIM = true;
+	static final boolean TRIM = false;
 	
 	public static void main(String[] args) {
 		try {

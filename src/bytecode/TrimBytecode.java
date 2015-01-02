@@ -24,16 +24,16 @@ public class TrimBytecode extends BaseStreamingJarProcessor {
 	@Override
 	public ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception {
 		return new ClassVisitor(Opcodes.ASM5, parent) {
-			@Override
-			public void visitSource(String source, String debug) {
-			}
+			//@Override
+			//public void visitSource(String source, String debug) {
+			//}
 			
 			@Override
 			public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
 				return new MethodVisitor(Opcodes.ASM5, super.visitMethod(access, name, desc, signature, exceptions)) {
-					@Override
-					public void visitLineNumber(int line, Label start) {
-					}
+					//@Override
+					//public void visitLineNumber(int line, Label start) {
+					//}
 					@Override
 					public void visitLocalVariable(String name, String desc, String signature, Label start, Label end, int index) {
 					}
