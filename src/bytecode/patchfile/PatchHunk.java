@@ -1,5 +1,6 @@
 package bytecode.patchfile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -69,5 +70,16 @@ public class PatchHunk {
 			lines.subList(at, at+oldCount).clear();
 		if(newLines.size() != 0)
 			lines.addAll(at, newLines);
+	}
+
+	public void applyStreaming(StreamingPatchContext ctx) throws IOException {
+		// can't search around when streaming - must be an exact match
+		ctx.passThroughUntil(oldStart + (oldCount == 0 ? 1 : 0), newStart + (newCount == 0 ? 1 : 0));
+		
+		for(int k = 0; k < oldCount; k++)
+			ctx.readLine();
+		
+		for(String s : newLines)
+			ctx.writeLine(s);
 	}
 }

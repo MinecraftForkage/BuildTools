@@ -7,10 +7,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,14 +56,10 @@ public class Installer {
 		File unsorted = new File(tempDir, "unsorted.jar");
 		File sorted = new File(tempDir, "sorted.jar");
 		
-		byte[] bytecodeTextBytes;
+		File unpatchedBytecodeFile;
 		
 		if(Boolean.getBoolean("minecraftforkage.installer.readUnpatchedBytecodeFromFile")) {
-			File file = new File("../bytecode-orig.txt");
-			
-			try (FileInputStream in = new FileInputStream(file)) {
-				bytecodeTextBytes = Utils.readStream(in);
-			}
+			unpatchedBytecodeFile = new File("../bytecode-orig.txt");
 		}
 		else
 		{
@@ -104,17 +105,11 @@ public class Installer {
 			if(dlg != null) dlg.startIndeterminate("Sorting class files");
 			SortZipEntries.sort(unsorted, null, false, new FileOutputStream(sorted));
 			
-			if(dlg != null) dlg.startIndeterminate("Converting bytecode to patchable format");
-			ByteArrayOutputStream bcOrigBAOS = new ByteArrayOutputStream();
-			Bytecode2Text.go(new FileInputStream(sorted), new PrintStream(bcOrigBAOS));
-			bytecodeTextBytes = bcOrigBAOS.toByteArray();
-			bcOrigBAOS = null;
+			unpatchedBytecodeFile = new File(tempDir, "bytecode-unpatched.txt");
 			
-			// for debugging
-			if(Boolean.getBoolean("minecraftforkage.installer.dumpPreprocessedBytecode")) {
-				try (FileOutputStream fOut = new FileOutputStream(new File(tempDir, "bytecode-orig.txt"))) {
-					fOut.write(bytecodeTextBytes);
-				}
+			if(dlg != null) dlg.startIndeterminate("Converting bytecode to patchable format");
+			try (PrintStream fout = new PrintStream(new FileOutputStream(unpatchedBytecodeFile))) {
+				Bytecode2Text.go(new FileInputStream(sorted), fout);
 			}
 		}
 		
@@ -124,21 +119,26 @@ public class Installer {
 			bytecodePatch = PatchFile.load(br);
 		}
 		
+		File patchedBytecodeFile = new File(tempDir, "bytecode-patched.txt");
+		
 		if(dlg != null) dlg.startIndeterminate("Applying bytecode patch");
 		{
-			long patchingStartTime = System.nanoTime(); 
-			bytecodeTextBytes = bytecodePatch.applyPatches(bytecodeTextBytes, "build/bytecode-orig.txt", dlg);
+			long patchingStartTime = System.nanoTime();
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(unpatchedBytecodeFile), StandardCharsets.UTF_8))) {
+				try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(patchedBytecodeFile), StandardCharsets.UTF_8))) {
+					bytecodePatch.applyPatchesStreaming(in, out, "build/bytecode-orig.txt", dlg);
+				}
+			}
 			long patchingEndTime = System.nanoTime();
 			System.out.println("Patching took "+(patchingEndTime - patchingStartTime)+" ns");
-		}
-		try (FileOutputStream fos = new FileOutputStream(new File(tempDir, "bytecode-patched.txt"))) {
-			fos.write(bytecodeTextBytes);
 		}
 		
 		if(dlg != null) dlg.startIndeterminate("Converting back to JAR format");
 		ByteArrayOutputStream patchedJarBAOS = new ByteArrayOutputStream();
 		try (JarOutputStream patchedJarOut = new JarOutputStream(patchedJarBAOS)) {
-			new Text2Bytecode(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytecodeTextBytes))), patchedJarOut).run();;
+			try (BufferedReader patchedBytecodeIn = new BufferedReader(new InputStreamReader(new FileInputStream(patchedBytecodeFile), StandardCharsets.UTF_8))) {
+				new Text2Bytecode(patchedBytecodeIn, patchedJarOut).run();
+			}
 			Pack200.newUnpacker().unpack(new ByteArrayInputStream(installData.get("new-classes.pack")), patchedJarOut);
 			
 			try (ZipInputStream clientJarIn = new ZipInputStream(new FileInputStream(clientJar))) {

@@ -4,6 +4,7 @@ import installer.ProgressDialog;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -105,15 +106,29 @@ public class PatchFile {
 		return applyPatches(bytes, path, null);
 	}
 	
+	// TODO: streaming is even faster than this in-memory list shuffling algorithm.
+	// See if we can remove this algorithm. Note that streaming requires an exactly applicable
+	// patch; it can't search for context.
 	public byte[] applyPatches(byte[] bytes, String path, ProgressDialog dlg) {
 		if(!hunks.containsKey(path))
 			return bytes;
 		
+		
+		// Split into lines, then trim \r (if we have Windows line endings).
+		// This uses one less copy of the input than the previous .replace("\r\n", "\n").split("\n") method.
+		List<String> lines = Arrays.asList(new String(bytes, StandardCharsets.UTF_8).split("\n"));
+		for(int k = 0; k < lines.size(); k++) {
+			String line = lines.get(k);
+			if(line.endsWith("\r"))
+				lines.set(k, line.substring(0, line.length() - 1));
+		}
+		
 		// Measured time for the installer bytecode patching:
-		// 3.29s with TreeList
-		// 39.1s with ArrayList
-		// Over 5 minutes (after which I stopped waiting) with LinkedList (since it does not support efficient random access)
-		List<String> lines = new TreeList<>(Arrays.asList(new String(bytes, StandardCharsets.UTF_8).replace("\r\n","\n").split("\n")));
+		// 0.99s using applyPatchesStreaming instead
+		// 3.29s with this and TreeList
+		// 39.1s with this and ArrayList
+		// Over 5 minutes (after which I stopped waiting) with this and LinkedList (since it does not support efficient random access)
+		lines = new TreeList<>(lines);
 		
 		List<List<PatchHunk>> alternatives = hunks.get(path);
 		if(alternatives.size() == 1) {
@@ -156,6 +171,34 @@ public class PatchFile {
 			rv.append('\n');
 		}
 		return rv.toString().getBytes(StandardCharsets.UTF_8);
+	}
+
+	public void applyPatchesStreaming(BufferedReader in, PrintWriter out, String path, ProgressDialog dlg) throws IOException {
+		List<PatchHunk> hunks;
+		{
+			List<List<PatchHunk>> alternatives = this.hunks.get(path);
+			if(alternatives == null || alternatives.size() == 0) throw new RuntimeException("no hunks for "+path);
+			if(alternatives.size() != 1) throw new RuntimeException("can't try alternative patches when streaming (for "+path+")");
+			hunks = alternatives.get(0);
+		}
+		
+		if(dlg != null)
+			dlg.initProgressBar(0, hunks.size());
+		
+		StreamingPatchContext ctx = new StreamingPatchContext(in, out);
+		
+		for(PatchHunk hunk : hunks)
+			try {
+				if(dlg != null)
+					dlg.incrementProgress(1);
+				
+				hunk.applyStreaming(ctx);
+				
+			} catch(RuntimeException e) {
+				throw new RuntimeException("Failed patching hunk -"+hunk.oldStart+","+hunk.oldCount, e);
+			}
+		
+		ctx.skipRestOfFile();
 	}
 }
 
