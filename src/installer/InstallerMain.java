@@ -35,6 +35,12 @@ public class InstallerMain {
 		
 		ProgressDialog dlg = ProgressDialog.openModal(null, "MCF Installer");
 		
+		File globalMCFCacheDir = new File(Utils.getMinecraftDirectory(), "minecraft-forkage-install-cache");
+		if(!globalMCFCacheDir.exists()) {
+			if(!globalMCFCacheDir.mkdirs())
+				globalMCFCacheDir = null;
+		}
+		
 		try {
 			Map<String, byte[]> installData;
 			
@@ -85,7 +91,7 @@ public class InstallerMain {
 			
 			
 			dlg.startIndeterminate("Downloading client");
-			byte[] mcClient = Utils.download(dlg, "http://s3.amazonaws.com/Minecraft.Download/versions/"+mcver+"/"+mcver+".jar", "minecraft.jar");
+			byte[] mcClient = Utils.download(dlg, "http://s3.amazonaws.com/Minecraft.Download/versions/"+mcver+"/"+mcver+".jar", globalMCFCacheDir, "minecraft."+mcver+".jar", "minecraft.jar");
 			if(mcClient == null)
 				throw new AlreadyHandledException(); // Utils.download already displayed an error message
 			
@@ -95,7 +101,7 @@ public class InstallerMain {
 			}
 			
 			dlg.startIndeterminate("Downloading server");
-			byte[] mcServer = Utils.download(dlg, "http://s3.amazonaws.com/Minecraft.Download/versions/"+mcver+"/minecraft_server."+mcver+".jar", "minecraft_server.jar");
+			byte[] mcServer = Utils.download(dlg, "http://s3.amazonaws.com/Minecraft.Download/versions/"+mcver+"/minecraft_server."+mcver+".jar", globalMCFCacheDir, "minecraft_server."+mcver+".jar", "minecraft_server.jar");
 			if(mcServer == null)
 				throw new AlreadyHandledException();
 			
@@ -143,7 +149,7 @@ public class InstallerMain {
 		} catch(AlreadyHandledException e) {
 			// do nothing
 		
-		} catch(Exception e) {
+		} catch(Throwable e) {
 			e.printStackTrace(); // in case someone is running this in a console
 			
 			StringWriter sw = new StringWriter();

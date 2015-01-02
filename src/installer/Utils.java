@@ -4,6 +4,7 @@ import java.awt.im.InputContext;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -47,7 +48,7 @@ public class Utils {
 		return rv;
 	}
 
-	public static byte[] download(ProgressDialog dlg, String urlString, String overrideFileName) throws MalformedURLException {
+	public static byte[] download(ProgressDialog dlg, String urlString, File cacheDir, String cacheFileName, String overrideFileName) throws MalformedURLException {
 		
 		File overrideFile = new File(overrideFileName);
 		if(overrideFile.exists()) {
@@ -55,6 +56,16 @@ public class Utils {
 				return readStream(in);
 			} catch(IOException e) {
 				e.printStackTrace();
+			}
+		}
+		
+		File cacheFile = new File(cacheDir, cacheFileName);
+		if(cacheFile.exists()) {
+			try (FileInputStream in = new FileInputStream(cacheFile)) {
+				return readStream(in);
+			} catch(IOException e) {
+				e.printStackTrace();
+				cacheFile.delete();
 			}
 		}
 		
@@ -86,7 +97,19 @@ public class Utils {
 						dlg.bar.setValue(nRead);
 				}
 				
-				return tempBAOS.toByteArray();
+				byte[] fileContents = tempBAOS.toByteArray();
+				tempBAOS = null;
+				
+				if(cacheDir != null) {
+					// create cache file, by writing to a temp file then atomically moving it
+					File cacheTempFile = File.createTempFile("mcf-installer-download-", ".tmp");
+					try (FileOutputStream out = new FileOutputStream(cacheTempFile)) {
+						out.write(fileContents);
+					}
+					cacheTempFile.renameTo(cacheFile);
+				}
+				
+				return fileContents;
 			}
 		} catch(IOException e) {
 			JOptionPane.showMessageDialog(dlg, "Download failed: "+e, "MCF Installer Failure", JOptionPane.ERROR_MESSAGE);
