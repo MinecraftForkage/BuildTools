@@ -24,6 +24,7 @@ public class TrimBytecode extends BaseStreamingJarProcessor {
 	@Override
 	public ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception {
 		return new ClassVisitor(Opcodes.ASM5, parent) {
+			////////// Some mods rely on debug information
 			//@Override
 			//public void visitSource(String source, String debug) {
 			//}
@@ -31,6 +32,7 @@ public class TrimBytecode extends BaseStreamingJarProcessor {
 			@Override
 			public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
 				return new MethodVisitor(Opcodes.ASM5, super.visitMethod(access, name, desc, signature, exceptions)) {
+					////////// Some mods rely on debug information
 					//@Override
 					//public void visitLineNumber(int line, Label start) {
 					//}
@@ -44,13 +46,14 @@ public class TrimBytecode extends BaseStreamingJarProcessor {
 				};
 			}
 			
-			@Override
-			public void visitInnerClass(String name, String outerName, String innerName, int access) {
-			}
+			////////// Some mods rely on outer/inner class information
+			//@Override
+			//public void visitInnerClass(String name, String outerName, String innerName, int access) {
+			//}
 			
-			@Override
-			public void visitOuterClass(String owner, String name, String desc) {
-			}
+			//@Override
+			//public void visitOuterClass(String owner, String name, String desc) {
+			//}
 		};
 	}
 }
