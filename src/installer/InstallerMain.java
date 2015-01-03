@@ -158,7 +158,8 @@ public class InstallerMain {
 			
 			
 			// Done!
-			JOptionPane.showMessageDialog(dlg, "Minecraft Forkage was successfully installed.\nVersion name in launcher: "+launcherVersionName, "MCF Installer - Done!", JOptionPane.INFORMATION_MESSAGE);
+			if(!Boolean.getBoolean("minecraftforkage.installer.skipDoneMessage"))
+				JOptionPane.showMessageDialog(dlg, "Minecraft Forkage was successfully installed.\nVersion name in launcher: "+launcherVersionName, "MCF Installer - Done!", JOptionPane.INFORMATION_MESSAGE);
 			
 			
 		} catch(AlreadyHandledException e) {
