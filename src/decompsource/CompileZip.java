@@ -50,7 +50,7 @@ public class CompileZip {
 		List<File> otherFiles = new ArrayList<>();
 		JavaFileManager parent;
 		
-		ZipFileManager(File file, File libsDir, JavaFileManager parent) throws IOException {
+		ZipFileManager(File file, File libsDir, JavaFileManager parent, List<File> additionalClasspathFiles) throws IOException {
 			zf = new ZipFile(file);
 			
 			for(Enumeration<? extends ZipEntry> entries_enum = zf.entries(); entries_enum.hasMoreElements();)
@@ -59,6 +59,7 @@ public class CompileZip {
 			this.parent = parent;
 			
 			walkLibs(libsDir);
+			otherFiles.addAll(additionalClasspathFiles);
 			
 			String s="";
 			for(File f : otherFiles)
@@ -384,9 +385,18 @@ public class CompileZip {
 	}
 	
 	public static void main(String[] args) {
-		if(args.length != 2) {
-			System.err.println("Usage: java CompileDirTree sources.zip libsDir > output.jar");
+		if(args.length < 2 || (args.length & 1) != 0) {
+			System.err.println("Usage: java CompileDirTree sources.zip libsDir [-cp file.jar]... > output.jar");
 			System.exit(1);
+		}
+		
+		List<File> additionalClasspathFiles = new ArrayList<>();
+		
+		for(int k = 0; k < args.length; k += 2) {
+			String opt = args[k];
+			String val = args[k+1];
+			if(opt.equals("-cp"))
+				additionalClasspathFiles.add(new File(val));
 		}
 		
 		try {
@@ -394,7 +404,7 @@ public class CompileZip {
 			
 			JavaFileManager standardFM = compiler.getStandardFileManager(null, null, StandardCharsets.UTF_8);
 			
-			ZipFileManager fileManager = new ZipFileManager(new File(args[0]), new File(args[1]), standardFM);
+			ZipFileManager fileManager = new ZipFileManager(new File(args[0]), new File(args[1]), standardFM, additionalClasspathFiles);
 			
 			List<JavaFileObject> compilationFileObjects = new ArrayList<>();
 			for(ZipEntry ze : fileManager.entries) {
