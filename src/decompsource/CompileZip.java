@@ -399,6 +399,13 @@ public class CompileZip {
 				additionalClasspathFiles.add(new File(val));
 		}
 		
+		List<String> compilerOptions = new ArrayList<>();
+		
+		compilerOptions.add("-source");
+		compilerOptions.add("1.6");
+		compilerOptions.add("-target");
+		compilerOptions.add("1.6");
+		
 		try {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 			
@@ -429,7 +436,7 @@ public class CompileZip {
 					}
 				}
 				
-				CompilationTask task = compiler.getTask(null, fileManager, null, null, null, compilationFileObjects);
+				CompilationTask task = compiler.getTask(null, fileManager, null, compilerOptions, null, compilationFileObjects);
 			
 				if(!task.call()) {
 					System.err.println("Compilation failed");
