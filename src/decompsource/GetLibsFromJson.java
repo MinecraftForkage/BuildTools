@@ -61,7 +61,6 @@ public class GetLibsFromJson {
 			
 			if(rulesObject != null) {
 				if(!checkRules((List<?>)rulesObject, osType)) {
-					System.out.println("not applicable: "+name);
 					continue;
 				}
 			}
