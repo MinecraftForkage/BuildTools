@@ -114,6 +114,11 @@ public class Text2Bytecode {
 	private Method getMethod(Class<?> class1, String methodName) throws Exception {
 		for(Method m : class1.getMethods()) {
 			if(m.getName().equals(methodName)) {
+				if(methodName.equals("visitMethodInsn")) {
+					Class<?>[] argtypes = m.getParameterTypes();
+					if(argtypes[argtypes.length - 1] != boolean.class)
+						continue;
+				}
 				m.setAccessible(true);
 				return m;
 			}
