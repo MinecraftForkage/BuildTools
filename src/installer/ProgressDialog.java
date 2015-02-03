@@ -3,6 +3,7 @@ package installer;
 import immibis.bon.IProgressListener;
 
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Window;
 
 import javax.swing.BoxLayout;
@@ -69,35 +70,66 @@ public class ProgressDialog extends JDialog implements IProgressListener {
 		return dlg;
 	}
 
-	public void startIndeterminate(String string) {
-		label.setText(string);
-		bar.setIndeterminate(true);
+	public void startIndeterminate(final String string) {
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				label.setText(string);
+				bar.setIndeterminate(true);
+				label.repaint();
+			}
+		});
 	}
 
-	public void initProgressBar(int min, int max) {
-		bar.setMinimum(min);
-		bar.setMaximum(max);
-		bar.setValue(0);
-		bar.setIndeterminate(false);
+	public void initProgressBar(final int min, final int max) {
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				bar.setMinimum(min);
+				bar.setMaximum(max);
+				bar.setValue(0);
+				bar.setIndeterminate(false);
+			}
+		});
 	}
 
-	public void incrementProgress(int i) {
-		bar.setValue(bar.getValue()+i);
+	public void incrementProgress(final int i) {
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				bar.setValue(bar.getValue()+i);
+			}
+		});
 	}
 
 	@Override
-	public void start(int max, String text) {
-		initProgressBar(0, max);
-		label.setText(text);
+	public void start(final int max, final String text) {
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				initProgressBar(0, max);
+				label.setText(text);
+			}
+		});
 	}
 
 	@Override
-	public void set(int value) {
-		bar.setValue(value);
+	public void set(final int value) {
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				bar.setValue(value);
+			}
+		});
 	}
 
 	@Override
-	public void setMax(int max) {
-		initProgressBar(0, max);
+	public void setMax(final int max) {
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				initProgressBar(0, max);
+			}
+		});
 	}
 }
