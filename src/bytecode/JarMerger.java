@@ -93,10 +93,10 @@ public class JarMerger {
 	
 	// Does not close `clientJF`, `serverJF` or `outJF`.
 	public static void merge(ZipFile clientJF, ZipFile serverJF, ZipOutputStream outJF, Config cfg, ProgressDialog dlg) throws IOException {
-		Set<String> seenResources = new HashSet<>();
-		Map<String, ZipEntry> clientClasses = new HashMap<>();
-		Map<String, ZipEntry> serverClasses = new HashMap<>();
-		Set<String> commonClasses = new HashSet<>();
+		Set<String> seenResources = new TreeSet<>();
+		Map<String, ZipEntry> clientClasses = new TreeMap<>();
+		Map<String, ZipEntry> serverClasses = new TreeMap<>();
+		Set<String> commonClasses = new TreeSet<>();
 		
 		gatherClassNamesAndCopyResources(clientJF, outJF, seenResources, clientClasses, cfg);
 		gatherClassNamesAndCopyResources(serverJF, outJF, seenResources, serverClasses, cfg);
@@ -225,9 +225,9 @@ public class JarMerger {
 	}
 	
 	private static void mergeFields(ClassNode client, ClassNode server) {
-		Map<String, FieldNode> clientFields = new HashMap<>();
-		Map<String, FieldNode> serverFields = new HashMap<>();
-		Set<String> fieldNames = new HashSet<>();
+		Map<String, FieldNode> clientFields = new TreeMap<>();
+		Map<String, FieldNode> serverFields = new TreeMap<>();
+		Set<String> fieldNames = new TreeSet<>();
 		for(FieldNode fn : client.fields) {clientFields.put(fn.name, fn); fieldNames.add(fn.name);}
 		for(FieldNode fn : server.fields) {serverFields.put(fn.name, fn); fieldNames.add(fn.name);}
 		for(String fname : fieldNames) {
@@ -249,9 +249,9 @@ public class JarMerger {
 	}
 	
 	private static void mergeMethods(ClassNode client, ClassNode server) {
-		Map<String, MethodNode> clientMethods = new HashMap<>();
-		Map<String, MethodNode> serverMethods = new HashMap<>();
-		Set<String> methods = new HashSet<>();
+		Map<String, MethodNode> clientMethods = new TreeMap<>();
+		Map<String, MethodNode> serverMethods = new TreeMap<>();
+		Set<String> methods = new TreeSet<>();
 		for(MethodNode fn : client.methods) {clientMethods.put(fn.name+fn.desc, fn); methods.add(fn.name+fn.desc);}
 		for(MethodNode fn : server.methods) {serverMethods.put(fn.name+fn.desc, fn); methods.add(fn.name+fn.desc);}
 		for(String fname : methods) {

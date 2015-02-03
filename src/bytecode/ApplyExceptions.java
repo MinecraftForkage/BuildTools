@@ -1,8 +1,10 @@
 package bytecode;
 
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -36,12 +38,16 @@ public class ApplyExceptions extends BaseStreamingJarProcessor {
 				if(exceptions == null)
 					exceptions = new String[0];
 				
-				Set<String> excSet = new HashSet<>(Arrays.asList(exceptions));
 				String propExcs = props.getProperty(className+"."+name+desc, "").split("\\|")[0];
-				if(!propExcs.equals(""))
-					excSet.addAll(Arrays.asList(propExcs.split(",")));
 				
-				exceptions = excSet.toArray(new String[excSet.size()]);
+				if(!propExcs.equals("")) {
+					List<String> excSet = new ArrayList<String>(Arrays.asList(exceptions));
+					for(String newExc : Arrays.asList(propExcs.split(",")))
+						if(!excSet.contains(newExc))
+							excSet.add(newExc);
+				
+					exceptions = excSet.toArray(new String[excSet.size()]);
+				}
 				
 				return super.visitMethod(access, name, desc, signature, exceptions);
 			}
