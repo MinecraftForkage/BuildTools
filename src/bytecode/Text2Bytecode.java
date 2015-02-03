@@ -101,7 +101,7 @@ public class Text2Bytecode {
 					throw new AssertionError("invalid return type: "+parts[3]);
 				
 			} else
-				throw new Exception(line);
+				throw new Exception("Unexpected call start: " + line);
 		}
 		if(!firstFile) {
 			if(objstack.size() != 1)
@@ -112,6 +112,7 @@ public class Text2Bytecode {
 	}
 
 	private Method getMethod(Class<?> class1, String methodName) throws Exception {
+		Method rv = null;
 		for(Method m : class1.getMethods()) {
 			if(m.getName().equals(methodName)) {
 				if(methodName.equals("visitMethodInsn")) {
@@ -119,10 +120,13 @@ public class Text2Bytecode {
 					if(argtypes[argtypes.length - 1] != boolean.class)
 						continue;
 				}
+				if(rv != null) throw new RuntimeException("multiple matches for "+methodName);
 				m.setAccessible(true);
-				return m;
+				rv = m;
 			}
 		}
+		if(rv != null)
+			return rv;
 		//if(class1.getSuperclass() != null)
 		//	return getMethod(class1.getSuperclass(), methodName);
 		throw new AssertionError("no such method: "+class1.getName()+"."+methodName);
@@ -175,6 +179,6 @@ public class Text2Bytecode {
 			} else
 				throw new AssertionError("can't make array of type "+type);
 		}
-		throw new Exception(line);
+		throw new Exception("Unexpected value start: " + line);
 	}
 }
