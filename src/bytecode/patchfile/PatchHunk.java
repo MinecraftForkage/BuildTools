@@ -76,8 +76,12 @@ public class PatchHunk {
 		// can't search around when streaming - must be an exact match
 		ctx.passThroughUntil(oldStart + (oldCount == 0 ? 1 : 0), newStart + (newCount == 0 ? 1 : 0));
 		
-		for(int k = 0; k < oldCount; k++)
-			ctx.readLine();
+		for(int k = 0; k < oldCount; k++) {
+			String actual = ctx.readLine();
+			String expected = oldLines.get(k);
+			if(!actual.equals(expected))
+				throw new IOException("Invalid patch? Expected line '"+expected+"', found '"+actual+"' on line "+(oldStart + k));
+		}
 		
 		for(String s : newLines)
 			ctx.writeLine(s);
