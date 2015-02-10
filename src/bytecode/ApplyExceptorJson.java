@@ -3,71 +3,33 @@ package bytecode;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
 
 import immibis.bon.com.immibis.json.JsonReader;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 
-public class ApplyExceptorJson {
+public class ApplyExceptorJson extends BaseStreamingJarProcessor {
 	public static void main(String[] args) {
-		if(args.length != 1) {
-			System.err.println("Usage: java ApplyExceptorJson exceptor.json < infile.jar > outfile.jar");
-			System.exit(1);
-		}
-		
-		try {
-			
-			 Map<String, Map<String, Object>> raw_json = loadJson(new File(args[0]));
-			
-			try (ZipInputStream zipIn = new ZipInputStream(System.in)) {
-				try (ZipOutputStream zipOut = new ZipOutputStream(System.out)) {
-					ZipEntry ze;
-					while((ze = zipIn.getNextEntry()) != null) {
-						
-						zipOut.putNextEntry(new ZipEntry(ze.getName()));
-						
-						if(!ze.getName().endsWith(".class")) {
-							copyResource(zipIn, zipOut, ze);
-						
-						} else {
-							// class file
-							ClassWriter cw = new ClassWriter(0);
-							new ClassReader(zipIn).accept(new ApplyJsonClassVisitor(cw, raw_json), 0);
-							
-							zipOut.write(cw.toByteArray());
-						}
-						
-						zipOut.closeEntry();
-					}
-				}
-			}
-			
-		} catch(Throwable t) {
-			t.printStackTrace();
-			System.exit(1);
-		}
+		new ApplyExceptorJson().go(args);
 	}
 	
-	private static byte[] buffer = new byte[32768];
-	private static void copyResource(ZipInputStream zipIn, ZipOutputStream zipOut, ZipEntry ze) throws IOException {
-		while(true) {
-			int read = zipIn.read(buffer);
-			if(read <= 0)
-				break;
-			zipOut.write(buffer, 0, read);
-		}
-		zipIn.closeEntry();
+	private Map<String, Map<String, Object>> raw_json;
+	
+	@Override
+	public void loadConfig(Reader file) throws Exception {
+		raw_json = (Map<String, Map<String, Object>>)JsonReader.readJSON(file);
+	}
+	
+	@Override
+	protected ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception {
+		return new ApplyJsonClassVisitor(parent, raw_json);
 	}
 	
 	public static Map<String, Map<String, Object>> loadJson(File file) throws IOException {

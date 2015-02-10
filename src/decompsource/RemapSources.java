@@ -2,6 +2,8 @@ package decompsource;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,14 +20,42 @@ import bytecode.BaseStreamingZipProcessor;
 
 public class RemapSources {
 	
-	private static Map<String, String> fieldNames = new HashMap<>();
-	private static Map<String, String> fieldDocs = new HashMap<>();
-	private static Map<String, String> methodNames = new HashMap<>();
-	private static Map<String, String> methodDocs = new HashMap<>();
-	private static Map<String, String> paramNames = new HashMap<>();
+	private Map<String, String> fieldNames = new HashMap<>();
+	private Map<String, String> fieldDocs = new HashMap<>();
+	private Map<String, String> methodNames = new HashMap<>();
+	private Map<String, String> methodDocs = new HashMap<>();
+	private Map<String, String> paramNames = new HashMap<>();
 	
-	private static boolean noJavadocs;
-	private static boolean doesJavadocs = false; // currently unsettable; TODO what's the relationship between this and noJavadocs?
+	public boolean noJavadocs;
+	private boolean doesJavadocs = false; // currently unsettable; TODO what's the relationship between this and noJavadocs?
+	
+	public void readConfigs(String methodsFile, String fieldsFile, String paramsFile) throws Exception {
+		try (BufferedReader reader = new BufferedReader(new FileReader(methodsFile))) {
+			String line;
+			while((line = reader.readLine()) != null) {
+				String[] parts = line.split(",",-1);
+				methodNames.put(parts[0], parts[1]);
+				methodDocs.put(parts[0], parts[3]);
+			}
+		}
+		
+		try (BufferedReader reader = new BufferedReader(new FileReader(fieldsFile))) {
+			String line;
+			while((line = reader.readLine()) != null) {
+				String[] parts = line.split(",",-1);
+				fieldNames.put(parts[0], parts[1]);
+				fieldDocs.put(parts[0], parts[3]);
+			}
+		}
+		
+		try (BufferedReader reader = new BufferedReader(new FileReader(paramsFile))) {
+			String line;
+			while((line = reader.readLine()) != null) {
+				String[] parts = line.split(",",-1);
+				paramNames.put(parts[0], parts[1]);
+			}
+		}
+	}
 	
 	public static void main(String[] args) {
 		if(args.length != 4) {
@@ -35,58 +65,10 @@ public class RemapSources {
 		
 		try {
 			
-			try (BufferedReader reader = new BufferedReader(new FileReader(args[0]))) {
-				String line;
-				while((line = reader.readLine()) != null) {
-					String[] parts = line.split(",",-1);
-					methodNames.put(parts[0], parts[1]);
-					methodDocs.put(parts[0], parts[3]);
-				}
-			}
-			
-			try (BufferedReader reader = new BufferedReader(new FileReader(args[1]))) {
-				String line;
-				while((line = reader.readLine()) != null) {
-					String[] parts = line.split(",",-1);
-					fieldNames.put(parts[0], parts[1]);
-					fieldDocs.put(parts[0], parts[3]);
-				}
-			}
-			
-			try (BufferedReader reader = new BufferedReader(new FileReader(args[2]))) {
-				String line;
-				while((line = reader.readLine()) != null) {
-					String[] parts = line.split(",",-1);
-					paramNames.put(parts[0], parts[1]);
-				}
-			}
-			
-			noJavadocs = Boolean.parseBoolean(args[3]);
-			
-			try (ZipInputStream zipIn = new ZipInputStream(System.in)) {
-				try (ZipOutputStream zipOut = new ZipOutputStream(System.out)) {
-					ZipEntry ze;
-					while((ze = zipIn.getNextEntry()) != null) {
-						
-						zipOut.putNextEntry(new ZipEntry(ze.getName()));
-						
-						if(!ze.getName().endsWith(".java")) {
-							BaseStreamingZipProcessor.copyResource(zipIn, zipOut);
-						
-						} else {
-							ByteArrayOutputStream baos = new ByteArrayOutputStream();
-							BaseStreamingZipProcessor.copyResource(zipIn, baos);
-
-							byte[] bytes = baos.toByteArray();
-							bytes = process(bytes, ze.getName());
-							zipOut.write(bytes);
-						}
-						
-						zipIn.closeEntry();
-						zipOut.closeEntry();
-					}
-				}
-			}
+			RemapSources r = new RemapSources();
+			r.readConfigs(args[0], args[1], args[2]);
+			r.noJavadocs = Boolean.parseBoolean(args[3]);
+			r.go(System.in, System.out);
 			
 		} catch(Throwable t) {
 			t.printStackTrace();
@@ -96,11 +78,38 @@ public class RemapSources {
 		System.exit(0);
 	}
 	
+	public void go(InputStream in, OutputStream out) throws Exception {
+		try (ZipInputStream zipIn = new ZipInputStream(in)) {
+			try (ZipOutputStream zipOut = new ZipOutputStream(out)) {
+				ZipEntry ze;
+				while((ze = zipIn.getNextEntry()) != null) {
+					
+					zipOut.putNextEntry(new ZipEntry(ze.getName()));
+					
+					if(!ze.getName().endsWith(".java")) {
+						BaseStreamingZipProcessor.copyResource(zipIn, zipOut);
+					
+					} else {
+						ByteArrayOutputStream baos = new ByteArrayOutputStream();
+						BaseStreamingZipProcessor.copyResource(zipIn, baos);
+
+						byte[] bytes = baos.toByteArray();
+						bytes = process(bytes, ze.getName());
+						zipOut.write(bytes);
+					}
+					
+					zipIn.closeEntry();
+					zipOut.closeEntry();
+				}
+			}
+		}
+	}
+	
 	private static final Pattern                   SRG_FINDER = Pattern.compile("(func_[0-9]+_[a-zA-Z_]+|field_[0-9]+_[a-zA-Z_]+|p_[\\w]+_\\d+_)([^\\w\\$])");
     private static final Pattern                   METHOD     = Pattern.compile("^((?: {4})+|\\t+)(?:[\\w$.\\[\\]]+ )+(func_[0-9]+_[a-zA-Z_]+)\\(");
     private static final Pattern                   FIELD      = Pattern.compile("^((?: {4})+|\\t+)(?:[\\w$.\\[\\]]+ )+(field_[0-9]+_[a-zA-Z_]+) *(?:=|;)");
 
-    private static byte[] process(byte[] bytes, String filename) {
+    private byte[] process(byte[] bytes, String filename) {
 		Matcher matcher;
         ArrayList<String> newLines = new ArrayList<String>();
         for (String line : new String(bytes, StandardCharsets.UTF_8).split("\n"))
@@ -200,7 +209,7 @@ public class RemapSources {
         list.add(list.size() - back, line);
     }
     
-    private static String replaceInLine(String line)
+    private String replaceInLine(String line)
     {
         // FAR all methods
         StringBuffer buf = new StringBuffer();

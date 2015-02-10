@@ -1,4 +1,7 @@
-package decompsource;
+package net.mcforkage.ant;
+
+import immibis.bon.com.immibis.json.JsonReader;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -14,17 +17,35 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import immibis.bon.com.immibis.json.JsonReader;
+import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.Task;
+
 import bytecode.BaseStreamingZipProcessor;
 
-
-public class GetLibsFromJson {
-	public static void main(String[] args) throws Exception {
-		
-		if(args.length != 3) {
-			System.err.println("Usage: java GetLibsFromJson in.json libsdir/ nativesdir/");
-			System.exit(1);
-		}
+public class DownloadLibrariesTask extends Task {
+	
+	private File jsonfile, libsdir, nativesdir;
+	
+	public void setJsonfile(File f) {
+		jsonfile = f;
+	}
+	
+	public void setLibsdir(File f) {
+		libsdir = f;
+	}
+	
+	public void setNativesdir(File f) {
+		nativesdir = f;
+	}
+	
+	@Override
+	public void execute() throws BuildException {
+		if(jsonfile == null)
+			throw new BuildException("jsonfile not specified");
+		if(libsdir == null)
+			throw new BuildException("libsdir not specified");
+		if(nativesdir == null)
+			throw new BuildException("nativesdir not specified");
 		
 		String osType = "unknown";
 		{
@@ -40,13 +61,13 @@ public class GetLibsFromJson {
 		String arch = System.getProperty("os.arch").contains("64") ? "64" : "32";
 		
 		Map json;
-		try (FileReader fr = new FileReader(new File(args[0]))) {
+		try (FileReader fr = new FileReader(jsonfile)) {
 			json = (Map)JsonReader.readJSON(fr);
+		} catch(IOException e) {
+			throw new BuildException("Failed to read or parse "+jsonfile, e);
 		}
-		List<Map> libraries = (List<Map>)json.get("libraries");
 		
-		String libsDir = args[1];
-		File nativesDir = new File(args[2]);
+		List<Map> libraries = (List<Map>)json.get("libraries");
 		
 		for(Map libraryObject : (List<Map>)libraries) {
 			Map<String, Object> library = (Map<String, Object>)libraryObject;
@@ -71,7 +92,7 @@ public class GetLibsFromJson {
 				suffixes.add("");
 			else {
 				String nativeSuffixObject = (String)((Map<String, ?>)nativesObject).get(osType);
-				if(nativeSuffixObject == null) throw new Exception("natives library "+name+" is allowed on platform "+osType+" but has no native suffix specified");
+				if(nativeSuffixObject == null) throw new BuildException("natives library "+name+" has no native suffix specified");
 				
 				suffixes.add("-" + (String)nativeSuffixObject);
 			}
@@ -82,16 +103,16 @@ public class GetLibsFromJson {
 			
 			String baseURL = (urlObject != null ? (String)urlObject + "/" : "https://libraries.minecraft.net/");
 			
-			List<File> files = download(libsDir, name, baseURL, suffixes, arch);
+			List<File> files = download(libsdir, name, baseURL, suffixes, arch);
 			
 			if(nativesObject != null) {
-				extractNatives(files.get(0), nativesDir);
+				extractNatives(files.get(0), nativesdir);
 			}
 		}
 	}
 	
 
-	private static void extractNatives(File zipFile, File nativesDir) throws IOException {
+	private static void extractNatives(File zipFile, File nativesDir) throws BuildException {
 		//System.out.println("extracting natives: "+zipFile.getName());
 		try (ZipInputStream zin = new ZipInputStream(new FileInputStream(zipFile))) {
 			ZipEntry ze;
@@ -112,13 +133,15 @@ public class GetLibsFromJson {
 				}
 				zin.closeEntry();
 			}
+		} catch(IOException e) {
+			throw new BuildException("Failed to extract natives from "+zipFile+" to "+nativesDir, e);
 		}
 	}
 
-	private static List<File> download(String libsDir, String name, String baseURL, List<String> suffixes, String arch) throws IOException {
+	private static List<File> download(File libsDir, String name, String baseURL, List<String> suffixes, String arch) throws BuildException {
 		String[] nameParts = name.split(":");
 		if(nameParts.length != 3)
-			throw new IOException("malformed library name: "+name);
+			throw new BuildException("malformed library name: "+name);
 		
 		List<File> files = new ArrayList<>();
 		
@@ -132,20 +155,22 @@ public class GetLibsFromJson {
 			files.add(new File(libsDir, fileName));
 			
 			
-			System.out.println(libsDir+"/"+fileName);
-			
 			if(new File(libsDir, fileName).exists()) {
 				continue;
 			}
 			
-			System.err.println(url);
+			System.err.println(fileName);
 			
-			HttpURLConnection conn = (HttpURLConnection)new URL(url).openConnection();
-			conn.setRequestProperty("User-Agent", "TotallyNotJavaMasqueradingAsRandomStuffBecauseForSomeReasonJavaUserAgentsAreBlacklistedButOnlyFromSomeRepositories/1.0");
-			try (InputStream downloadStream = conn.getInputStream()) {
-				try (OutputStream fileStream = new FileOutputStream(new File(libsDir, fileName))) {
-					BaseStreamingZipProcessor.copyResource(downloadStream, fileStream);
+			try {
+				HttpURLConnection conn = (HttpURLConnection)new URL(url).openConnection();
+				conn.setRequestProperty("User-Agent", "TotallyNotJavaMasqueradingAsRandomStuffBecauseForSomeReasonJavaUserAgentsAreBlacklistedButOnlyFromSomeRepositories/1.0");
+				try (InputStream downloadStream = conn.getInputStream()) {
+					try (OutputStream fileStream = new FileOutputStream(new File(libsDir, fileName))) {
+						BaseStreamingZipProcessor.copyResource(downloadStream, fileStream);
+					}
 				}
+			} catch(IOException e) {
+				throw new BuildException("Failed to download "+url, e);
 			}
 		}
 		
@@ -154,10 +179,10 @@ public class GetLibsFromJson {
 
 	/** Returns true if this library is allowed. */
 	@SuppressWarnings("unchecked")
-	private static boolean checkRules(List<?> rules, String osType) throws IOException {
+	private static boolean checkRules(List<?> rules, String osType) throws BuildException {
 		boolean allowed = false;
 		for(Object ruleObject : rules) {
-			if(!(ruleObject instanceof Map)) throw new IOException("malformed dev.json");
+			if(!(ruleObject instanceof Map)) throw new BuildException("malformed dev.json");
 			
 			Map<String, ?> rule = (Map<String, ?>)ruleObject;
 			boolean ruleAction;
@@ -166,7 +191,7 @@ public class GetLibsFromJson {
 			else if("disallow".equals(rule.get("action")))
 				ruleAction = false;
 			else
-				throw new IOException("malformed dev.json");
+				throw new BuildException("malformed dev.json");
 			
 			Map.Entry<String, ?> condition = null;
 			for(Map.Entry<String, ?> entry : rule.entrySet()) {
@@ -175,23 +200,23 @@ public class GetLibsFromJson {
 				else if(condition == null)
 					condition = entry;
 				else
-					throw new IOException("can't handle rule with more than one condition in dev.json: conditions are "+entry.getKey()+" and "+condition.getKey());
+					throw new BuildException("can't handle rule with more than one condition in dev.json: conditions are "+entry.getKey()+" and "+condition.getKey());
 			}
 			
 			if(condition == null)
 				allowed = ruleAction;
 			
 			else if(condition.getKey().equals("os")) {
-				if(!(condition.getValue() instanceof Map)) throw new IOException("malformed dev.json");
+				if(!(condition.getValue() instanceof Map)) throw new BuildException("malformed dev.json");
 				Map<String, ?> attrs = (Map<String, ?>)condition.getValue();
 				
-				if(attrs.size() != 1 || !attrs.containsKey("name")) throw new IOException("can't handle os condition: "+attrs);
+				if(attrs.size() != 1 || !attrs.containsKey("name")) throw new BuildException("can't handle os condition: "+attrs);
 				
 				if(osType.equals(attrs.get("name")))
 					allowed = ruleAction;
 			
 			} else
-				throw new IOException("can't handle unknown rule condition "+condition.getKey());
+				throw new BuildException("can't handle unknown rule condition "+condition.getKey());
 			
 		}
 		return allowed;

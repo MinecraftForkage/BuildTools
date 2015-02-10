@@ -58,14 +58,17 @@ public class CompileZip {
 			
 			this.parent = parent;
 			
-			walkLibs(libsDir);
+			if(libsDir != null)
+				walkLibs(libsDir);
 			otherFiles.addAll(additionalClasspathFiles);
 			
-			String s="";
-			for(File f : otherFiles)
-				s += ";" + f.getAbsolutePath();
-			if(!parent.handleOption("-cp", Arrays.asList(s.substring(1)).iterator()))
-				throw new RuntimeException(s);
+			if(!otherFiles.isEmpty()) {
+				String s="";
+				for(File f : otherFiles)
+					s += ";" + f.getAbsolutePath();
+				if(!parent.handleOption("-cp", Arrays.asList(s.substring(1)).iterator()))
+					throw new RuntimeException(s);
+			}
 		}
 		
 		private void walkLibs(File dir) throws IOException {
@@ -109,6 +112,7 @@ public class CompileZip {
 					public void close() throws IOException {
 						super.close();
 						
+						System.err.println("Writing "+className+"...");
 						zipOut.putNextEntry(new ZipEntry(className.replace(".","/")+".class"));
 						zipOut.write(toByteArray());
 						zipOut.closeEntry();
@@ -386,32 +390,35 @@ public class CompileZip {
 	
 	public static void main(String[] args) {
 		if(args.length < 2 || (args.length & 1) != 0) {
-			System.err.println("Usage: java CompileDirTree sources.zip libsDir [-cp file.jar]... > output.jar");
+			System.err.println("Usage: java CompileDirTree sources.zip libsDir [-cp file.jar | -x extraOption]... > output.jar");
 			System.exit(1);
 		}
 		
 		List<File> additionalClasspathFiles = new ArrayList<>();
+		List<String> compilerOptions = new ArrayList<>();
 		
 		for(int k = 0; k < args.length; k += 2) {
 			String opt = args[k];
 			String val = args[k+1];
 			if(opt.equals("-cp"))
 				additionalClasspathFiles.add(new File(val));
+			else if(opt.equals("-x"))
+				compilerOptions.add(val);
 		}
 		
-		List<String> compilerOptions = new ArrayList<>();
-		
-		compilerOptions.add("-source");
-		compilerOptions.add("1.6");
-		compilerOptions.add("-target");
-		compilerOptions.add("1.6");
+		if(!compilerOptions.contains("-source")) {
+			compilerOptions.add("-source");
+			compilerOptions.add("1.6");
+			compilerOptions.add("-target");
+			compilerOptions.add("1.6");
+		}
 		
 		try {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 			
 			JavaFileManager standardFM = compiler.getStandardFileManager(null, null, StandardCharsets.UTF_8);
 			
-			ZipFileManager fileManager = new ZipFileManager(new File(args[0]), new File(args[1]), standardFM, additionalClasspathFiles);
+			ZipFileManager fileManager = new ZipFileManager(new File(args[0]), args[1].equals("-") ? null : new File(args[1]), standardFM, additionalClasspathFiles);
 			
 			List<JavaFileObject> compilationFileObjects = new ArrayList<>();
 			for(ZipEntry ze : fileManager.entries) {

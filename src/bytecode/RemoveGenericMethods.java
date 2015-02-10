@@ -14,7 +14,7 @@ public class RemoveGenericMethods extends BaseStreamingJarProcessor {
 		new RemoveGenericMethods().go(args);
 	}
 	
-	protected boolean hasConfig() {
+	public boolean hasConfig() {
 		return false;
 	}
 	
@@ -70,6 +70,6 @@ public class RemoveGenericMethods extends BaseStreamingJarProcessor {
 	}
 
 	@Override
-	protected void loadConfig(Reader file) throws Exception {
+	public void loadConfig(Reader file) throws Exception {
 	}
 }

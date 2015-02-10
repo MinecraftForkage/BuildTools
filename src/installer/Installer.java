@@ -30,6 +30,7 @@ import java.util.zip.ZipOutputStream;
 import immibis.bon.com.immibis.json.JsonReader;
 import lzma.sdk.lzma.Decoder;
 import lzma.streams.LzmaInputStream;
+import net.mcforkage.ant.MergeJarsTask;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -91,7 +92,7 @@ public class Installer {
 			if(dlg != null) dlg.startIndeterminate("Processing bytecode");
 			new BaseStreamingJarProcessor() {
 				@Override
-				protected void loadConfig(Reader file) throws Exception {
+				public void loadConfig(Reader file) throws Exception {
 				}
 				
 				@Override

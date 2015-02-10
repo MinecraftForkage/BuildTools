@@ -63,8 +63,8 @@ public abstract class BaseStreamingJarProcessor {
 		}
 	}
 	
-	protected boolean hasConfig() {return true;}
-	protected abstract void loadConfig(Reader file) throws Exception;
+	public boolean hasConfig() {return true;}
+	public abstract void loadConfig(Reader file) throws Exception;
 	protected abstract ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception;
 
 	private static byte[] buffer = new byte[32768];

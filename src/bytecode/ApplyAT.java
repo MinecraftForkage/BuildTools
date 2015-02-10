@@ -18,7 +18,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 
-public class ApplyAT {
+public class ApplyAT extends BaseStreamingJarProcessor {
 	
 	public static class Pattern {
 		String clazz; // internal name
@@ -112,44 +112,18 @@ public class ApplyAT {
 	}
 	
 	public static void main(String[] args) {
-		if(args.length != 1) {
-			System.err.println("Usage: java ApplyAT atfile.cfg < infile > outfile");
-			System.exit(1);
-		}
-		
-		try {
-			
-			List<Pattern> actions = loadActions(new FileReader(args[0]));
-			
-			try (ZipInputStream zipIn = new ZipInputStream(System.in)) {
-				try (ZipOutputStream zipOut = new ZipOutputStream(System.out)) {
-					ZipEntry ze;
-					while((ze = zipIn.getNextEntry()) != null) {
-						
-						zipOut.putNextEntry(new ZipEntry(ze.getName()));
-						
-						if(!ze.getName().endsWith(".class")) {
-							copyResource(zipIn, zipOut, ze);
-						
-						} else {
-							// class file
-							ClassWriter cw = new ClassWriter(0);
-							new ClassReader(zipIn).accept(new ApplyATClassVisitor(cw, actions), 0);
-							
-							zipOut.write(cw.toByteArray());
-						}
-						
-						zipOut.closeEntry();
-					}
-				}
-			}
-			
-		} catch(Throwable t) {
-			t.printStackTrace();
-			System.exit(1);
-		}
-		
-		System.exit(0);
+		new ApplyAT().go(args);
+	}
+	
+	private List<Pattern> actions;
+	@Override
+	public void loadConfig(Reader file) throws Exception {
+		actions = loadActions(file);
+	}
+	
+	@Override
+	protected ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception {
+		return new ApplyATClassVisitor(parent, actions);
 	}
 	
 	static int changeAccess(List<Pattern> actions, int old, String clazz, String object) {

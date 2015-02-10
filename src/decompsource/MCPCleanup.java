@@ -21,14 +21,14 @@ public class MCPCleanup extends BaseStreamingZipProcessor {
 	}
 	
 	@Override
-	protected boolean hasConfig() {
+	public boolean hasConfig() {
 		return true;
 	}
 	
 	ASFormatter formatter = new ASFormatter();
 	
 	@Override
-	protected void loadConfig(File file) throws Exception {
+	public void loadConfig(File file) throws Exception {
 		new OptParser(formatter).parseOptionFile(file);
 	}
 	

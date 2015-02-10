@@ -1,5 +1,8 @@
 package decompsource;
 import java.io.File;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -12,26 +15,31 @@ public class CSV2SRG {
 			System.exit(1);
 		}
 		
-		Map<String, String> methodsCsv = loadCsv(args[0]);
-		Map<String, String> fieldsCsv = loadCsv(args[1]);
+		go(args[0], args[1], System.in, System.out);
+	}
+	
+	public static void go(String methodsCsvFile, String fieldsCsvFile, InputStream referenceSrg, PrintStream outputSrg) throws Exception {
 		
-		try (Scanner s = new Scanner(System.in)) {
+		Map<String, String> methodsCsv = loadCsv(methodsCsvFile);
+		Map<String, String> fieldsCsv = loadCsv(fieldsCsvFile);
+		
+		try (Scanner s = new Scanner(referenceSrg)) {
 			while(s.hasNextLine()) {
 				String[] parts = s.nextLine().split(" ");
 				switch(parts[0]) {
 				case "CL:":
-					System.out.println("CL: "+parts[2]+" "+parts[2]);
+					outputSrg.println("CL: "+parts[2]+" "+parts[2]);
 					break;
 				case "FD:":
 					String name = parts[2].substring(parts[2].lastIndexOf('/')+1);
 					String owner = parts[2].substring(0, parts[2].lastIndexOf('/'));
-					System.out.println("FD: "+owner+"/"+name+" "+owner+"/"+get(fieldsCsv, name));
+					outputSrg.println("FD: "+owner+"/"+name+" "+owner+"/"+get(fieldsCsv, name));
 					break;
 				case "MD:":
 					name = parts[3].substring(parts[3].lastIndexOf('/')+1);
 					owner = parts[3].substring(0, parts[3].lastIndexOf('/'));
 					String desc = parts[4];
-					System.out.println("MD: "+owner+"/"+name+" "+desc+" "+owner+"/"+get(methodsCsv, name)+" "+desc);
+					outputSrg.println("MD: "+owner+"/"+name+" "+desc+" "+owner+"/"+get(methodsCsv, name)+" "+desc);
 					break;
 				case "PK:":
 					break;

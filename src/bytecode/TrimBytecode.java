@@ -13,12 +13,12 @@ public class TrimBytecode extends BaseStreamingJarProcessor {
 	}
 	
 	@Override
-	protected boolean hasConfig() {
+	public boolean hasConfig() {
 		return false;
 	}
 
 	@Override
-	protected void loadConfig(Reader file) throws Exception {
+	public void loadConfig(Reader file) throws Exception {
 	}
 
 	@Override

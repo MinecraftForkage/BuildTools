@@ -26,32 +26,7 @@ public abstract class BaseStreamingZipProcessor {
 			if(hasConfig())
 				loadConfig(new File(args[0]));
 			
-			try (ZipInputStream zipIn = new ZipInputStream(System.in)) {
-				try (ZipOutputStream zipOut = new ZipOutputStream(System.out)) {
-					ZipEntry ze;
-					while((ze = zipIn.getNextEntry()) != null) {
-						
-						zipOut.putNextEntry(new ZipEntry(ze.getName()));
-						
-						if(ze.getName().endsWith("/") || !shouldProcess(ze.getName())) {
-							copyResource(zipIn, zipOut);
-						
-						} else {
-							ByteArrayOutputStream baos = new ByteArrayOutputStream();
-							copyResource(zipIn, baos);
-
-							byte[] bytes = baos.toByteArray();
-							bytes = process(bytes, ze.getName());
-							zipOut.write(bytes);
-						}
-						
-						zipIn.closeEntry();
-						zipOut.closeEntry();
-					}
-				}
-			}
-			
-			done();
+			go(System.in, System.out);
 			
 		} catch(Throwable t) {
 			t.printStackTrace();
@@ -61,11 +36,40 @@ public abstract class BaseStreamingZipProcessor {
 		System.exit(0);
 	}
 	
+	public void go(InputStream in, OutputStream out) throws Exception {
+		try (ZipInputStream zipIn = new ZipInputStream(in)) {
+			try (ZipOutputStream zipOut = new ZipOutputStream(out)) {
+				ZipEntry ze;
+				while((ze = zipIn.getNextEntry()) != null) {
+					
+					zipOut.putNextEntry(new ZipEntry(ze.getName()));
+					
+					if(ze.getName().endsWith("/") || !shouldProcess(ze.getName())) {
+						copyResource(zipIn, zipOut);
+					
+					} else {
+						ByteArrayOutputStream baos = new ByteArrayOutputStream();
+						copyResource(zipIn, baos);
+
+						byte[] bytes = baos.toByteArray();
+						bytes = process(bytes, ze.getName());
+						zipOut.write(bytes);
+					}
+					
+					zipIn.closeEntry();
+					zipOut.closeEntry();
+				}
+			}
+		}
+		
+		done();
+	}
+	
 	protected void done() throws Exception {}
 	
-	protected abstract boolean hasConfig();
+	public abstract boolean hasConfig();
 	protected abstract boolean shouldProcess(String name);
-	protected abstract void loadConfig(File file) throws Exception;
+	public abstract void loadConfig(File file) throws Exception;
 	protected abstract byte[] process(byte[] in, String name) throws Exception;
 
 	private static byte[] buffer = new byte[32768];

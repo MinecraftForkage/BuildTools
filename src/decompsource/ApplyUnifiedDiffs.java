@@ -17,13 +17,13 @@ public class ApplyUnifiedDiffs extends BaseStreamingZipProcessor {
 	}
 	
 	@Override
-	protected boolean hasConfig() {
+	public boolean hasConfig() {
 		return true;
 	}
 	
 	private PatchFile ipatch;
 	@Override
-	protected void loadConfig(File file) throws Exception {
+	public void loadConfig(File file) throws Exception {
 		try (BufferedReader fr = new BufferedReader(new FileReader(file))) {
 			ipatch = PatchFile.load(fr);
 		}

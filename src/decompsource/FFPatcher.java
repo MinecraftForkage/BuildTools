@@ -21,12 +21,12 @@ public class FFPatcher extends BaseStreamingZipProcessor {
 	}
 	
 	@Override
-	protected boolean hasConfig() {
+	public boolean hasConfig() {
 		return false;
 	}
 	
 	@Override
-	protected void loadConfig(File file) throws Exception {
+	public void loadConfig(File file) throws Exception {
 	}
 	
 	@Override
