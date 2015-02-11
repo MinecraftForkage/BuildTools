@@ -16,6 +16,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Properties;
+import java.util.zip.GZIPInputStream;
 
 import javax.swing.JOptionPane;
 import javax.swing.UIManager;
@@ -49,18 +50,31 @@ public class InstallerMain {
 			
 			{
 				InputStream embeddedInstallDataStream = InstallerMain.class.getResourceAsStream("/install-data.zip.lzma");
-				if(embeddedInstallDataStream == null)
-				{
-					File devInstallDataFile = new File("../../build/install-data.zip.lzma");
-					if(devInstallDataFile.exists())
-						embeddedInstallDataStream = new FileInputStream(devInstallDataFile);
+				if(embeddedInstallDataStream != null)
+					embeddedInstallDataStream = new LzmaInputStream(embeddedInstallDataStream, new Decoder());
+				
+				else {
+					embeddedInstallDataStream = InstallerMain.class.getResourceAsStream("/install-data.zip.gz");
+					if(embeddedInstallDataStream != null)
+						embeddedInstallDataStream = new GZIPInputStream(embeddedInstallDataStream);
 					else {
-						JOptionPane.showMessageDialog(null, "The install data file is missing. Whoever created this installer screwed something up.", "MCF Installer Failure", JOptionPane.ERROR_MESSAGE);
-						throw new AlreadyHandledException();
+						File devInstallDataFile = new File("../../build/install-data.zip.lzma");
+						if(devInstallDataFile.exists())
+							embeddedInstallDataStream = new LzmaInputStream(new FileInputStream(devInstallDataFile), new Decoder());
+						else {
+							devInstallDataFile = new File("../../build/install-data.zip.gz");
+							
+							if(devInstallDataFile.exists()) {
+								embeddedInstallDataStream = new GZIPInputStream(new FileInputStream(devInstallDataFile));
+							} else {
+								JOptionPane.showMessageDialog(null, "The install data file is missing. Whoever created this installer screwed something up.", "MCF Installer Failure", JOptionPane.ERROR_MESSAGE);
+								throw new AlreadyHandledException();
+							}
+						}
 					}
 				}
 				
-				try (InputStream in = new LzmaInputStream(embeddedInstallDataStream, new Decoder())) {
+				try (InputStream in = embeddedInstallDataStream) {
 					installData = Utils.readZip(in);
 				}
 			}
@@ -76,10 +90,9 @@ public class InstallerMain {
 			}
 			
 			String mcver = installProperties.getProperty("mcver");
-			String mcfver = installProperties.getProperty("mcfver");
 			String launcherVersionName = installProperties.getProperty("launcherVersionName");
 			
-			if(mcver == null || mcfver == null || launcherVersionName == null) {
+			if(mcver == null || launcherVersionName == null) {
 				JOptionPane.showMessageDialog(null, "The install properties file is corrupted. Whoever created this installer screwed something up.", "MCF Installer Failure", JOptionPane.ERROR_MESSAGE);
 				throw new AlreadyHandledException();
 			}

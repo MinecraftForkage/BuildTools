@@ -137,7 +137,7 @@ public class Installer {
 			long patchingStartTime = System.nanoTime();
 			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(unpatchedBytecodeFile), StandardCharsets.UTF_8))) {
 				try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(patchedBytecodeFile), StandardCharsets.UTF_8))) {
-					bytecodePatch.applyPatchesStreaming(in, out, "build/bytecode-orig.txt", dlg);
+					bytecodePatch.applyPatchesStreaming(in, out, "oldfile", dlg);
 				}
 			}
 			long patchingEndTime = System.nanoTime();

@@ -1,6 +1,7 @@
 package decompsource;
 import java.io.File;
 import java.io.FileReader;
+import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 
@@ -15,13 +16,18 @@ public class MakeInstallJSON {
 			System.exit(1);
 		}
 		
+		go(new File(args[0]), new File(args[1]), args[2], System.out);
+	}
+	
+	public static void go(File vanillaFile, File fmlFile, String version, PrintStream out) throws Exception {
+		
 		Map vanilla, fml;
 		
-		try (FileReader fr = new FileReader(new File(args[0]))) {
+		try (FileReader fr = new FileReader(vanillaFile)) {
 			vanilla = (Map)JsonReader.readJSON(fr);
 		}
 		
-		try (FileReader fr = new FileReader(new File(args[1]))) {
+		try (FileReader fr = new FileReader(fmlFile)) {
 			fml = (Map)JsonReader.readJSON(fr);
 		}
 		
@@ -37,7 +43,7 @@ public class MakeInstallJSON {
 		}
 		
 		// override the version ID
-		vanilla.put("id", args[2]);
+		vanilla.put("id", version);
 		
 		// add FML tweak class to arguments
 		vanilla.put("minecraftArguments", vanilla.get("minecraftArguments") + " --tweakClass cpw.mods.fml.common.launcher.FMLTweaker");
@@ -45,6 +51,6 @@ public class MakeInstallJSON {
 		// override main class
 		vanilla.put("mainClass", "net.minecraft.launchwrapper.Launch");
 		
-		System.out.println(JsonWriter.toString(vanilla));
+		out.println(JsonWriter.toString(vanilla));
 	}
 }
