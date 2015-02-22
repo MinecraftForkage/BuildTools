@@ -23,30 +23,38 @@ public class PatchFile {
 	public static PatchFile load(BufferedReader in) throws IOException {
 		String line;
 		
-		// one list for each patch in the file (from +++ to next +++)
-		List<List<String>> splitLines = new ArrayList<>();
+		// one object for each patch in the file (from +++ to next +++)
+		class PatchedFileInfo {
+			List<String> patchLines = new LinkedList<String>(); // XXX Why LinkedList? Why are we iterating over this with .remove(0) until empty?
+			int firstLineInPatchFileIndex;
+		}
 		
-		List<String> curPatch = null;
+		List<PatchedFileInfo> splitLines = new ArrayList<>();
+		
+		int currentLineInPatchFile = 0;
+		PatchedFileInfo curPatch = null;
 		while(true) {
-			line = in.readLine();
+			line = in.readLine(); currentLineInPatchFile++;
 			if(line == null)
 				break;
 			if(line.startsWith("diff "))
 				continue;
 			if(line.startsWith("---")) {
-				curPatch = new LinkedList<String>();
+				curPatch = new PatchedFileInfo();
+				curPatch.firstLineInPatchFileIndex = currentLineInPatchFile;
 				splitLines.add(curPatch);
 			}
 			if(curPatch == null)
 				continue;
-			curPatch.add(line);
+			curPatch.patchLines.add(line);
 		}
 		
 		PatchFile pf = new PatchFile();
 		
 		Pattern hunkHeaderPattern = Pattern.compile("@@ -([0-9]+)(,[0-9]+|) \\+([0-9]+)(,[0-9]+|) @@");
 			
-		for(List<String> patchLines : splitLines) {
+		for(PatchedFileInfo pfi : splitLines) {
+			List<String> patchLines = pfi.patchLines;
 			String path = patchLines.remove(0).substring(3).trim().replace("\\","/");
 			if(!patchLines.get(0).startsWith("+++"))
 				throw new IOException("corrupted patch file: --- not followed by +++ but by "+patchLines.get(0));
@@ -59,10 +67,11 @@ public class PatchFile {
 			if(path.startsWith("../src-base/")) path = path.substring(12);
 			if(path.startsWith("minecraft/")) path = path.substring(10);
 			
+			currentLineInPatchFile = pfi.firstLineInPatchFileIndex + 1;
 			List<PatchHunk> patchHunks = new ArrayList<>();
 			while(!patchLines.isEmpty()) {
 				
-				String header = patchLines.remove(0);
+				String header = patchLines.remove(0); currentLineInPatchFile++;
 				Matcher headerMatcher = hunkHeaderPattern.matcher(header);
 				PatchHunk h = new PatchHunk();
 				h.path = path;
@@ -78,13 +87,13 @@ public class PatchFile {
 					else
 						h.newCount = Integer.parseInt(headerMatcher.group(4).substring(1));
 				} else
-					throw new IOException("corrupted patch file: unparseable hunk header: "+header+" / next line: ");
+					throw new IOException("corrupted patch file: unparseable hunk header: "+header+" on line " + currentLineInPatchFile);
 				
 				while(h.oldLines.size() != h.oldCount || h.newLines.size() != h.newCount) {
 					if(h.oldLines.size() > h.oldCount || h.newLines.size() > h.newCount)
 						throw new IOException("corrupted patch file; line count mismatch, path is "+path);
 					
-					line = patchLines.remove(0);
+					line = patchLines.remove(0); currentLineInPatchFile++;
 					if(!line.startsWith("+")) h.oldLines.add(line.substring(1));
 					if(!line.startsWith("-")) h.newLines.add(line.substring(1));
 				}
