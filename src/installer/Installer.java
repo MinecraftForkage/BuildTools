@@ -10,9 +10,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.io.PipedReader;
+import java.io.PipedWriter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
@@ -30,7 +35,12 @@ import java.util.zip.ZipOutputStream;
 import immibis.bon.com.immibis.json.JsonReader;
 import lzma.sdk.lzma.Decoder;
 import lzma.streams.LzmaInputStream;
+import net.mcforkage.ant.ApplyDiff2Task;
 import net.mcforkage.ant.MergeJarsTask;
+import net.mcforkage.ant.UncompressDiff2Task;
+import net.mcforkage.ant.compression.BitInputStream;
+import net.mcforkage.ant.diff2.ApplyDiff2;
+import net.mcforkage.ant.diff2.UncompressDiff2;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -53,7 +63,7 @@ import bytecode.TrimBytecode;
 import bytecode.patchfile.PatchFile;
 
 public class Installer {
-	public static File install(File clientJar, File serverJar, File tempDir, Map<String, byte[]> installData, final ProgressDialog dlg) throws Exception {
+	public static File install(File clientJar, File serverJar, File tempDir, final Map<String, byte[]> installData, final ProgressDialog dlg) throws Exception {
 		File merged = new File(tempDir, "merged.jar");
 		File srg = new File(tempDir, "srg.jar");
 		File unsorted = new File(tempDir, "unsorted.jar");
@@ -124,24 +134,30 @@ public class Installer {
 			}
 		}
 		
-		if(dlg != null) dlg.startIndeterminate("Loading bytecode patch");
-		PatchFile bytecodePatch;
-		try (BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(installData.get("bytecode.patch"))))) {
-			bytecodePatch = PatchFile.load(br);
-		}
+		
 		
 		File patchedBytecodeFile = new File(tempDir, "bytecode-patched.txt");
 		
 		if(dlg != null) dlg.startIndeterminate("Applying bytecode patch");
 		{
-			long patchingStartTime = System.nanoTime();
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(unpatchedBytecodeFile), StandardCharsets.UTF_8))) {
+			try (final PipedReader patch_in = new PipedReader()) {
+				new Thread() {
+					@Override
+					public void run() {
+						try (PrintWriter patch_out = new PrintWriter(new PipedWriter(patch_in))) {
+							try (BitInputStream compressed_patch_in = new BitInputStream(new ByteArrayInputStream(installData.get("bytecode.patch2z")))) {
+								UncompressDiff2.uncompress(compressed_patch_in, patch_out);
+							}
+						} catch(IOException e) {
+							throw new RuntimeException(e);
+						}
+					}
+				}.start();
+
 				try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(patchedBytecodeFile), StandardCharsets.UTF_8))) {
-					bytecodePatch.applyPatchesStreaming(in, out, "oldfile", dlg);
+					ApplyDiff2.apply(ApplyDiff2.readFile(unpatchedBytecodeFile), new BufferedReader(patch_in), out);
 				}
 			}
-			long patchingEndTime = System.nanoTime();
-			System.out.println("Patching took "+(patchingEndTime - patchingStartTime)+" ns");
 		}
 		
 		if(dlg != null) dlg.startIndeterminate("Converting back to JAR format");

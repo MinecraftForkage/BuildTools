@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.mcforkage.ant.diff2.ApplyDiff2;
+
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Task;
 
@@ -39,23 +41,12 @@ public class ApplyDiff2Task extends Task {
 		if(outfile == null) throw new BuildException("Output file not set");
 		if(patch == null) throw new BuildException("Patch file not set");
 		
-		List<String> inputLines = readFile(infile);
+		try {
+			List<String> inputLines = ApplyDiff2.readFile(infile);
 		
-		try (PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outfile), StandardCharsets.UTF_8)))) {
-			try (BufferedReader patch_in = new BufferedReader(new InputStreamReader(new FileInputStream(patch), StandardCharsets.UTF_8))) {
-				String line;
-				while((line = patch_in.readLine()) != null) {
-					//System.out.println(line);
-					
-					if(line.startsWith("write "))
-						out.println(line.substring(6));
-					else if(line.startsWith("copy ")) {
-						String[] parts = line.split(" ");
-						int index = Integer.parseInt(parts[1]);
-						int length = Integer.parseInt(parts[2]);
-						for(int k = 0; k < length; k++)
-							out.println(inputLines.get(index + k));
-					}
+			try (PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outfile), StandardCharsets.UTF_8)))) {
+				try (BufferedReader patch_in = new BufferedReader(new InputStreamReader(new FileInputStream(patch), StandardCharsets.UTF_8))) {
+					ApplyDiff2.apply(inputLines, patch_in, out);
 				}
 			}
 			
@@ -64,23 +55,5 @@ public class ApplyDiff2Task extends Task {
 		}
 	}
 	
-	private List<String> readFile(File f) throws BuildException {
-		ArrayList<String> lines = new ArrayList<>();
-		
-		try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(f), StandardCharsets.UTF_8))) {
-			
-			String line;
-			while((line = in.readLine()) != null) {
-				if(line.endsWith("\r")) throw new BuildException("x");
-				lines.add(line);
-			}
-			
-		} catch(IOException e) {
-			throw new BuildException("Error reading "+f, e);
-		}
-		
-		lines.trimToSize();
-		
-		return lines;
-	}
+	
 }

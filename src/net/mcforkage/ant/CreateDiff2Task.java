@@ -173,20 +173,11 @@ public class CreateDiff2Task extends Task {
 		try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(output), StandardCharsets.UTF_8))) {
 			
 			int nextToLine = 0;
+			int progressCounter = 0;
 			
 			while(nextToLine < toLineIndices.length) {
 				SearchResult result = fromLineIndicesIndex.search(toLineIndices, nextToLine);
-				/*int index = 1;
-				int low, high;
-				for(low = 0, high = toLineIndices.length - nextToLine; high > low + 1;) {
-					int mid = low + (high - low) / 2;
-					index = fromLineIndicesIndex.search(toLineIndices, nextToLine, mid);
-					if(index != -1)
-						low = mid;
-					else
-						high = mid;
-				}*/
-				
+
 				if(result == null) {
 					while(nextToLine < toLineIndices.length && !arrayContains(fromLineIndices, toLineIndices[nextToLine])) {
 						out.println("write " + indexToLine.get(toLineIndices[nextToLine]));
@@ -196,7 +187,9 @@ public class CreateDiff2Task extends Task {
 					out.println("copy " + result.index + " " + result.length);
 					nextToLine += result.length;
 				}
-				System.out.println(nextToLine+" / "+toLineIndices.length);
+				
+				if((++progressCounter) % 10000 == 0)
+					System.out.println(nextToLine+" / "+toLineIndices.length);
 			}
 			
 			

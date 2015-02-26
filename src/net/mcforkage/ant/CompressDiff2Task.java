@@ -40,7 +40,6 @@ public class CompressDiff2Task extends Task {
 	
 	public static void main(String[] args) throws Exception {
 		CompressDiff2Task t = new CompressDiff2Task();
-		System.setOut(new PrintStream(new FileOutputStream("../../build/temp.txt")));
 		t.infile = new File("../../build/bytecode.patch2");
 		t.outfile = new File("../../build/bytecode.patch2z");
 		t.execute();
@@ -106,26 +105,16 @@ public class CompressDiff2Task extends Task {
 			throw new BuildException(e);
 		}
 		
-		/*{
-			List<Integer> indices = new ArrayList<>(indexFreq.counts.keySet());
-			Collections.sort(indices);
-			for(int i : indices)
-				System.out.println(i+" "+indexFreq.counts.get(i));
-		}*/
-		
 		HuffmanTable<String> literalTable = HuffmanTable.build(literalFreq);
 		HuffmanTable<Integer> indexTable = HuffmanTable.build(indexFreq);
 		HuffmanTable<Integer> lengthTable = HuffmanTable.build(lengthFreq);
 		HuffmanTable<Character> charTable = HuffmanTable.build(charFreq);
-		
-		printTable(indexTable.root);
 		
 		try (BitOutputStream out = new BitOutputStream(new BufferedOutputStream(new FileOutputStream(outfile)))) {
 			
 			charTable.writeTable(out);
 			writeStringHuffmanTable(literalTable.root, out, charTable);
 			writeDiffedHuffmanTable(indexTable.root, out, 1);
-			//indexTable.writeTable(out);
 			lengthTable.writeTable(out);
 			
 			for(InputLine line : patchLines) {
@@ -142,32 +131,6 @@ public class CompressDiff2Task extends Task {
 		} catch(IOException e) {
 			throw new BuildException(e);
 		}
-	}
-	
-	private <T> void printTable(HuffmanNode<T> t) {
-		final int numWith1[] = new int[1];
-		final int total[] = new int[1];
-		final int otherfreq[] = new int[1];
-		t.accept(new HuffmanTreeVisitor<T>() {
-			String indent = "";
-			@Override
-			public void visit(Node<T> n) {
-				System.out.println(indent+"Node: "+n.freq);
-				indent += " ";
-				n.c0.accept(this);
-				n.c1.accept(this);
-				indent = indent.substring(1);
-			}
-			@Override
-			public void visit(Leaf<T> n) {
-				System.out.println(indent+n.value+": "+n.freq);
-				if(n.freq == 1) numWith1[0]++;
-				else otherfreq[0] += n.freq;
-				total[0]++;
-			}
-		});
-		System.out.println(numWith1[0]+" out of "+total[0]+" nodes have freq=1");
-		System.out.println("accounting for "+numWith1[0]+" out of "+t.freq+" freq");
 	}
 	
 	private void writeStringHuffmanTable(HuffmanNode<String> t, BitOutputStream out, HuffmanTable<Character> charTable) throws IOException {
@@ -210,9 +173,6 @@ public class CompressDiff2Task extends Task {
 		});
 		
 		final HuffmanTable<Integer> difftable = HuffmanTable.build(diffFreq);
-		
-		System.out.println("DIFF TABLE:");
-		printTable(difftable.root);
 		
 		writeDiffedHuffmanTable(difftable.root, out, levels - 1);
 		
