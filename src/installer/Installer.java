@@ -106,7 +106,7 @@ public class Installer {
 				}
 				
 				@Override
-				protected ClassVisitor createClassVisitor(ClassVisitor cv) throws Exception {
+				public ClassVisitor createClassVisitor(ClassVisitor cv) throws Exception {
 					cv = trim.createClassVisitor(cv);
 					cv = removeGenericBridges.createClassVisitor(cv);
 					cv = obfid.createClassVisitor(cv);

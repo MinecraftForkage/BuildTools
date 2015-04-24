@@ -1,4 +1,6 @@
 package bytecode;
+import installer.Utils;
+
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,7 +39,7 @@ public abstract class BaseStreamingJarProcessor {
 		
 		
 	}
-	public void go(InputStream in, OutputStream out) throws Exception {
+	public final void go(InputStream in, OutputStream out) throws Exception {
 			
 		try (ZipInputStream zipIn = new ZipInputStream(in)) {
 			try (ZipOutputStream zipOut = new ZipOutputStream(out)) {
@@ -47,8 +49,8 @@ public abstract class BaseStreamingJarProcessor {
 					zipOut.putNextEntry(new ZipEntry(ze.getName()));
 					
 					if(!ze.getName().endsWith(".class")) {
-						copyResource(zipIn, zipOut, ze);
-					
+						Utils.copyStream(zipIn, zipOut);
+						
 					} else {
 						// class file
 						ClassWriter cw = new ClassWriter(0);
@@ -57,6 +59,7 @@ public abstract class BaseStreamingJarProcessor {
 						zipOut.write(cw.toByteArray());
 					}
 					
+					zipIn.closeEntry();
 					zipOut.closeEntry();
 				}
 			}
@@ -65,16 +68,5 @@ public abstract class BaseStreamingJarProcessor {
 	
 	public boolean hasConfig() {return true;}
 	public abstract void loadConfig(Reader file) throws Exception;
-	protected abstract ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception;
-
-	private static byte[] buffer = new byte[32768];
-	private static void copyResource(ZipInputStream zipIn, ZipOutputStream zipOut, ZipEntry ze) throws IOException {
-		while(true) {
-			int read = zipIn.read(buffer);
-			if(read <= 0)
-				break;
-			zipOut.write(buffer, 0, read);
-		}
-		zipIn.closeEntry();
-	}
+	public abstract ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception;
 }

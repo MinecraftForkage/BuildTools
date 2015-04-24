@@ -1,6 +1,5 @@
 package installer;
 
-import java.awt.im.InputContext;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;

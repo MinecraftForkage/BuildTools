@@ -61,8 +61,9 @@ public class RemoveGenericMethods extends BaseStreamingJarProcessor {
 						
 						if(!deleteMethod) {
 							mn.accept(parent.visitMethod(access, name, desc, signature, exceptions));
-						} else
-							System.err.println("Removing "+className+"/"+name+desc);
+						}
+						//else
+						//	System.err.println("Removing "+className+"/"+name+desc);
 					}
 				};
 			}

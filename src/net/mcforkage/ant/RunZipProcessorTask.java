@@ -25,7 +25,7 @@ public class RunZipProcessorTask extends Task {
 		if(input == null) throw new BuildException("Input not set");
 		if(output == null) throw new BuildException("Output not set");
 		
-		if(processorClass == null) throw new BuildException("Input not set");
+		if(processorClass == null) throw new BuildException("Processor class not set");
 		
 		Class<? extends BaseStreamingZipProcessor> clazz;
 		try {

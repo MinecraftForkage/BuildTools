@@ -122,7 +122,7 @@ public class ApplyAT extends BaseStreamingJarProcessor {
 	}
 	
 	@Override
-	protected ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception {
+	public ClassVisitor createClassVisitor(ClassVisitor parent) throws Exception {
 		return new ApplyATClassVisitor(parent, actions);
 	}
 	
